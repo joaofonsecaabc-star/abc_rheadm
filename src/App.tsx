@@ -550,7 +550,7 @@ function Sidebar({
             onClick={() => setUserMenu(!userMenu)}
             className="mt-2 flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left hover:bg-white/10"
           >
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-white/90 font-bold text-slate-800">
+            <div className="grid h-9 w-9 place-items-center rounded-full border border-white bg-white font-bold text-black grayscale">
               {initials.toUpperCase()}
             </div>
             <div className="min-w-0">
