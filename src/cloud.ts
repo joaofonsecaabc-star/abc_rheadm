@@ -17,7 +17,11 @@ export type CloudUser = { id:number; username:string; fullName:string; role:'adm
 
 async function apiJson<T>(url:string, options?:RequestInit):Promise<T>{
   const response=await fetch(url,options)
-  const data=await response.json() as T & {error?:string}
+  const contentType=response.headers.get('content-type')||''
+  const raw=await response.text()
+  if(!contentType.includes('application/json'))throw new Error('A API do sistema ainda não está disponível nesta versão. Atualize a página com Ctrl+F5.')
+  let data:T & {error?:string}
+  try{data=JSON.parse(raw) as T & {error?:string}}catch{throw new Error('O servidor respondeu em um formato inválido. Atualize a página e tente novamente.')}
   if(!response.ok)throw new Error(data.error||'Não foi possível concluir a operação.')
   return data
 }
@@ -30,10 +34,7 @@ export async function updateCloudUser(user:CloudUser){return apiJson('/api/users
 
 export async function cloudLogin(username:string,password:string){
   if(!cloudEnabled())return {ok:true}
-  const response=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})})
-  const data=await response.json() as {ok?:boolean;error?:string}
-  if(!response.ok)throw new Error(data.error||'Falha ao entrar.')
-  return data
+  return apiJson<{ok?:boolean;error?:string}>('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})})
 }
 export async function cloudSession(){if(!cloudEnabled())return true;return (await fetch('/api/auth/session')).ok}
 export async function cloudLogout(){if(cloudEnabled())await fetch('/api/auth/logout',{method:'POST'})}
