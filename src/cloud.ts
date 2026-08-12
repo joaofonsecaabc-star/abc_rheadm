@@ -13,6 +13,21 @@ export type CloudState = {
 
 export const cloudEnabled = () => !['localhost','127.0.0.1'].includes(location.hostname)
 
+export type CloudUser = { id:number; username:string; fullName:string; role:'admin'|'operator'; active:boolean; password?:string; lastLoginAt?:string|null; createdAt?:string }
+
+async function apiJson<T>(url:string, options?:RequestInit):Promise<T>{
+  const response=await fetch(url,options)
+  const data=await response.json() as T & {error?:string}
+  if(!response.ok)throw new Error(data.error||'Não foi possível concluir a operação.')
+  return data
+}
+
+export async function cloudSetupRequired(){if(!cloudEnabled())return false;return (await apiJson<{needsSetup:boolean}>('/api/auth/status')).needsSetup}
+export async function cloudCreateAdmin(fullName:string,username:string,password:string){return apiJson('/api/auth/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fullName,username,password})})}
+export async function listCloudUsers(){if(!cloudEnabled())return [];return (await apiJson<{users:CloudUser[]}>('/api/users')).users.map(user=>({...user,active:Boolean(user.active)}))}
+export async function createCloudUser(user:Omit<CloudUser,'id'>){return apiJson('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(user)})}
+export async function updateCloudUser(user:CloudUser){return apiJson('/api/users',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(user)})}
+
 export async function cloudLogin(username:string,password:string){
   if(!cloudEnabled())return {ok:true}
   const response=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})})
