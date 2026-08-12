@@ -4977,9 +4977,11 @@ function HRModal({
 
 function HRPage({
   rows,
+  occurrences,
   onEdit,
 }: {
   rows: Recharge[];
+  occurrences: HROccurrence[];
   onEdit: (r: Recharge) => void;
 }) {
   const [detail, setDetail] = useState<{
@@ -5034,12 +5036,31 @@ function HRPage({
     })
     .filter((x) => daysUntil(x.date) <= 30)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
-  const notices = active.filter((r) => {
+  const employeeNotices = rows.filter((r) => {
       if (!r.noticeStart || !r.noticeEnd) return false;
       const start = new Date(r.noticeStart + "T12:00:00"),
         end = new Date(r.noticeEnd + "T12:00:00");
       return start <= today && end >= today;
     }),
+    rowById = new Map(rows.map((r) => [r.id, r])),
+    occurrenceNotices = occurrences
+      .filter((item) => {
+        if (item.type !== "Aviso" || !item.endDate) return false;
+        const start = new Date(item.date + "T12:00:00"),
+          end = new Date(item.endDate + "T12:00:00");
+        return start <= today && end >= today && rowById.has(item.employeeId);
+      })
+      .map((item) => ({
+        ...rowById.get(item.employeeId)!,
+        noticeStart: item.date,
+        noticeEnd: item.endDate,
+      })),
+    notices = [
+      ...employeeNotices,
+      ...occurrenceNotices.filter(
+        (record) => !employeeNotices.some((item) => item.id === record.id),
+      ),
+    ],
     terminations = rows.filter((r) => {
       if (!r.terminationDate) return false;
       const date = new Date(r.terminationDate + "T12:00:00");
@@ -6130,7 +6151,15 @@ export default function App() {
       />
     ) : module === "people" ? (
       page === "Visão geral" ? (
-        <HRPage rows={filteredEmployees} onEdit={openEdit} />
+        <HRPage
+          rows={
+            selectedStore === "Todas"
+              ? rows
+              : rows.filter((record) => record.store === selectedStore)
+          }
+          occurrences={occurrences}
+          onEdit={openEdit}
+        />
       ) : page === "Funcionários" ? (
         <HREmployeesPage
           rows={rows}
