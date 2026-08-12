@@ -284,14 +284,6 @@ const formatCpf = (value: string) =>
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-const formatPhone = (value: string) => {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 2) return digits ? `(${digits}` : "";
-  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return digits.length <= 10
-    ? `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
-    : `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-};
 const formatMoneyInput = (value: string) => {
   const digits = value.replace(/\D/g, "").slice(0, 10);
   if (!digits) return "";
@@ -1494,7 +1486,6 @@ function EmployeeModal({
     cpf: "",
     role: "",
     store: "",
-    phone: "",
     hiredAt: today,
     cardType: "BHBus",
     cardFare: "",
@@ -1528,7 +1519,6 @@ function EmployeeModal({
         cpf: initial.cpf || "",
         role: initial.role,
         store: initial.store,
-        phone: initial.phone,
         hiredAt: initial.hiredAt || today,
         cardType: initial.cardType,
         cardFare: String(initial.cardDailyFare ?? initial.dailyFare ?? ""),
@@ -1709,7 +1699,7 @@ function EmployeeModal({
               cpf: form.cpf,
               role: form.role,
               store: form.store,
-              phone: form.phone,
+              phone: initial?.phone || "",
               hiredAt: form.hiredAt,
               cardType: form.cardType,
               card: "",
@@ -1819,15 +1809,6 @@ function EmployeeModal({
                   <option key={s}>{s}</option>
                 ))}
               </select>
-            </Field>
-            <Field label="Telefone">
-              <input
-                inputMode="tel"
-                maxLength={15}
-                value={form.phone}
-                onChange={(e) => set("phone", formatPhone(e.target.value))}
-                placeholder="(31) 99999-9999"
-              />
             </Field>
             <Field label="Data de admissão">
               <input
@@ -2700,10 +2681,7 @@ function HREmployeesPage({
     list = rows
       .filter((r) => !isEmployeeDismissed(r))
       .filter(
-        (r, i) =>
-          rows.findIndex((x) =>
-            x.cpf && r.cpf ? x.cpf === r.cpf : x.employee === r.employee,
-          ) === i &&
+        (r) =>
           (storeFilter === "Todas" || r.store === storeFilter) &&
           `${r.employee} ${r.role} ${r.store}`
             .toLowerCase()
