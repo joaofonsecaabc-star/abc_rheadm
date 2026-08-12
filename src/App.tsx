@@ -5428,6 +5428,7 @@ function OccurrencesPage({
   reportOnly?: boolean;
 }) {
   const now = new Date(),
+    [detailType, setDetailType] = useState<HROccurrence["type"] | null>(null),
     [month, setMonth] = useState(
       `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
     ),
@@ -5639,24 +5640,28 @@ function OccurrencesPage({
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
+          onClick={() => setDetailType("Falta")}
           title="Faltas"
           value={counts.Falta}
           sub="No mês selecionado"
           icon={TriangleAlert}
         />
         <Metric
+          onClick={() => setDetailType("Atestado")}
           title="Atestados"
           value={counts.Atestado}
           sub="No mês selecionado"
           icon={FileSpreadsheet}
         />
         <Metric
+          onClick={() => setDetailType("Atraso")}
           title="Atrasos"
           value={counts.Atraso}
           sub="No mês selecionado"
           icon={Clock3}
         />
         <Metric
+          onClick={() => setDetailType("Aviso")}
           title="Avisos"
           value={counts.Aviso}
           sub="No mês selecionado"
@@ -5871,6 +5876,63 @@ function OccurrencesPage({
           </tbody>
         </table>
       </div>
+      {detailType &&
+        createPortal(
+          <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
+            <div className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    {detailType === "Aviso" ? "Avisos" : `${detailType}s`} do mês
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {list.filter((item) => item.type === detailType).length} registro(s)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDetailType(null)}
+                  className="ml-auto rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="max-h-[65vh] space-y-2 overflow-y-auto p-4">
+                {list
+                  .filter((item) => item.type === detailType)
+                  .map((item) => {
+                    const employee = map.get(item.employeeId);
+                    const detail =
+                      item.type === "Atestado"
+                        ? `${item.days || 1} dia(s) de atestado`
+                        : item.type === "Aviso"
+                          ? `De ${formatDate(item.date)} até ${item.endDate ? formatDate(item.endDate) : "data não informada"}`
+                          : `${item.hours || 0}h ${item.minutes || 0}min`;
+                    return (
+                      <div key={item.id} className="rounded-xl border border-slate-200 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <b className="text-sm text-slate-900">{employee?.employee || "Funcionário não encontrado"}</b>
+                            <div className="mt-1 text-xs text-slate-500">{employee?.store || "Loja não informada"}</div>
+                          </div>
+                          <div className="text-right text-xs">
+                            <b className="text-slate-700">{formatDate(item.date)}</b>
+                            <div className="mt-1 text-slate-500">{detail}</div>
+                          </div>
+                        </div>
+                        {item.note && <p className="mt-3 text-xs text-slate-500">{item.note}</p>}
+                      </div>
+                    );
+                  })}
+                {!list.some((item) => item.type === detailType) && (
+                  <p className="py-12 text-center text-sm text-slate-400">
+                    Nenhum registro nesta categoria.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </main>
   );
 }
