@@ -105,6 +105,80 @@ html.dark .text-emerald-50, html.dark .text-emerald-100, html.dark .text-emerald
 button, input, select { font: inherit; }
 input[type="month"] { text-transform: capitalize; }
 input[type="month"]::-webkit-datetime-edit { text-transform: capitalize; }
+
+/* Acesso: composição institucional em duas áreas. */
+#root > div.grid.min-h-screen.place-items-center {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: minmax(360px, 1.05fr) minmax(440px, .95fr);
+  gap: 0;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 72px) !important;
+  background: #111827 !important;
+}
+#root > div.grid.min-h-screen.place-items-center::before {
+  content: "GESTÃO DE PESSOAS E BENEFÍCIOS\A\A RH, ocorrências, funcionários e cartões de passagem reunidos em um único lugar.";
+  box-sizing: border-box;
+  display: flex;
+  min-height: min(720px, calc(100vh - 96px));
+  max-width: 680px;
+  white-space: pre-wrap;
+  align-items: flex-end;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 32px 0 0 32px;
+  padding: 80px 64px;
+  background-color: #262626;
+  background-image: linear-gradient(180deg, rgba(38,38,38,.05) 20%, rgba(17,24,39,.96) 78%), url('/sacolao-abc-logo.png?v=4');
+  background-repeat: no-repeat;
+  background-position: center, center 18%;
+  background-size: cover, min(330px, 58%);
+  color: #d1d5db;
+  font-size: 17px;
+  line-height: 1.65;
+  letter-spacing: .01em;
+}
+#root > div.grid.min-h-screen.place-items-center > div {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 570px !important;
+  min-height: min(720px, calc(100vh - 96px));
+  margin: 0 !important;
+  border-radius: 0 32px 32px 0 !important;
+  padding: clamp(42px, 5vw, 72px) clamp(34px, 4.5vw, 64px) !important;
+  box-shadow: 0 30px 80px rgba(0,0,0,.32) !important;
+}
+#root > div.grid.min-h-screen.place-items-center > div > div:first-child img {
+  height: 88px !important;
+  margin-bottom: 24px;
+}
+#root > div.grid.min-h-screen.place-items-center form input {
+  min-height: 54px;
+  background: #f8fafc;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+#root > div.grid.min-h-screen.place-items-center form input:focus {
+  background: #fff;
+  border-color: #64748b;
+  box-shadow: 0 0 0 4px rgba(100,116,139,.12);
+  outline: none;
+}
+#root > div.grid.min-h-screen.place-items-center form button[type="submit"],
+#root > div.grid.min-h-screen.place-items-center form > button:last-child {
+  min-height: 56px;
+  border-radius: 14px;
+  box-shadow: 0 14px 30px rgba(15,23,42,.2);
+}
+@media (max-width: 900px) {
+  #root > div.grid.min-h-screen.place-items-center { display: flex !important; padding: 20px !important; }
+  #root > div.grid.min-h-screen.place-items-center::before { display: none; }
+  #root > div.grid.min-h-screen.place-items-center > div {
+    min-height: auto;
+    max-width: 520px !important;
+    margin: auto !important;
+    border-radius: 28px !important;
+    padding: 36px 28px !important;
+  }
+}
 ::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-thumb { background: #c8d4cf; border-radius: 9px; }
 .fade-in { animation: fade .35s ease both; }
