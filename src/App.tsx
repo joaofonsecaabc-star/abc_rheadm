@@ -4617,21 +4617,26 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false);
   return (
-    <div className="grid min-h-screen place-items-center bg-gradient-to-br from-forest-950 via-forest-900 to-forest-700 p-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl sm:p-9">
-        <div className="text-center">
-          <img
-            src="/sacolao-abc-logo.png?v=4"
-            alt="Sacolão ABC"
-            className="mx-auto h-24 w-56 object-contain"
-          />
-          <h1 className="mt-3 text-2xl font-bold text-slate-900">
-            Gestão de Pessoas e Benefícios
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Recursos Humanos e vale-transporte
-          </p>
-        </div>
+    <div className="auth-screen flex min-h-screen items-center justify-center bg-[#eef0f2] p-4 sm:p-8">
+      <div className="grid w-full max-w-[980px] overflow-hidden rounded-[32px] border border-white/80 bg-white shadow-[0_32px_90px_rgba(15,23,42,.14)] md:grid-cols-[.9fr_1.1fr]">
+        <section className="relative hidden min-h-[650px] flex-col justify-between overflow-hidden bg-[#242424] p-12 text-white md:flex">
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full border-[52px] border-white/[.035]" />
+          <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full border-[60px] border-white/[.03]" />
+          <img src="/sacolao-abc-logo.png?v=4" alt="Sacolão ABC" className="relative h-28 w-60 object-contain object-left" />
+          <div className="relative">
+            <span className="text-[11px] font-bold uppercase tracking-[.28em] text-white/45">Portal administrativo</span>
+            <h1 className="mt-5 text-4xl font-bold leading-tight">Pessoas e benefícios,<br/>em um só lugar.</h1>
+            <p className="mt-5 max-w-sm text-sm leading-7 text-white/55">Acompanhe sua equipe, ocorrências de RH e cartões de passagem com segurança e organização.</p>
+          </div>
+          <p className="relative text-xs text-white/30">Sacolão ABC · Ambiente seguro</p>
+        </section>
+        <section className="flex min-h-[650px] flex-col justify-center px-7 py-12 sm:px-14 lg:px-16">
+          <img src="/sacolao-abc-logo.png?v=4" alt="Sacolão ABC" className="mb-8 h-20 w-40 object-contain object-left md:hidden" />
+          <div>
+            <span className="text-xs font-bold uppercase tracking-[.2em] text-slate-400">Bem-vindo de volta</span>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">Acesse sua conta</h2>
+            <p className="mt-2 text-sm text-slate-500">Informe seus dados para entrar no sistema.</p>
+          </div>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -4651,21 +4656,19 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               setLoading(false);
             }
           }}
-          className="mt-8 space-y-4"
+          className="mt-9 space-y-5"
         >
-          <label className="block text-sm font-semibold text-slate-700">
-            Usuário
+          <label className="block text-sm font-semibold text-slate-700">Usuário
             <input
               autoFocus
               required
               value={user}
               onChange={(e) => setUser(e.target.value)}
               placeholder="Digite seu usuário"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-100"
+              className="mt-2 h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-slate-500 focus:bg-white focus:ring-4 focus:ring-slate-100"
             />
           </label>
-          <label className="block text-sm font-semibold text-slate-700">
-            Senha
+          <label className="block text-sm font-semibold text-slate-700">Senha
             <div className="relative mt-2">
               <input
                 required
@@ -4673,32 +4676,31 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Digite sua senha"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-16 outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-100"
+                className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-20 outline-none transition focus:border-slate-500 focus:bg-white focus:ring-4 focus:ring-slate-100"
               />
               <button
                 type="button"
                 onClick={() => setShow(!show)}
-                className="absolute right-3 top-3 text-xs font-semibold text-forest-700"
+                className="absolute right-4 top-[18px] text-xs font-bold text-slate-500 hover:text-slate-900"
               >
                 {show ? "Ocultar" : "Mostrar"}
               </button>
             </div>
           </label>
           {error && (
-            <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">
+            <p className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-600">
               {error}
             </p>
           )}
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-forest-700 py-3.5 font-bold text-white shadow-lg shadow-forest-700/20 transition hover:bg-forest-800 disabled:opacity-60"
+            className="h-14 w-full rounded-2xl bg-[#262626] font-bold text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-black disabled:opacity-60"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
-        <p className="mt-6 text-center text-xs text-slate-400">
-          Acesso restrito aos colaboradores autorizados.
-        </p>
+          <div className="mt-8 flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200"/>Acesso restrito e protegido<span className="h-px flex-1 bg-slate-200"/></div>
+        </section>
       </div>
     </div>
   );
