@@ -5010,14 +5010,16 @@ function HRPage({
         firstInMonth =
           first.getFullYear() === today.getFullYear() &&
           first.getMonth() === today.getMonth(),
-        deadline = firstInMonth ? first : end,
-        stage = firstInMonth
+        endInMonth =
+          end.getFullYear() === today.getFullYear() &&
+          end.getMonth() === today.getMonth(),
+        firstUpcoming = firstInMonth && first >= today,
+        endUpcoming = endInMonth && end >= today,
+        deadline = firstUpcoming ? first : end,
+        stage = firstUpcoming
           ? "Fim dos primeiros 30 dias"
           : "Fim da prorrogação de 60 dias",
-        endsThisMonth =
-          firstInMonth ||
-          (end.getFullYear() === today.getFullYear() &&
-            end.getMonth() === today.getMonth());
+        endsThisMonth = firstUpcoming || endUpcoming;
       return { r, first, end, deadline, stage, endsThisMonth };
     })
     .filter((x) => x.endsThisMonth);
