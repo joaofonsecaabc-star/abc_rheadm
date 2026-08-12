@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.pnpm-store/
+tmp/
+.wrangler/
+.dev.vars
+.env.local
+*.log
+*.tsbuildinfo

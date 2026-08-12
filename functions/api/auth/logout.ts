@@ -1,0 +1,2 @@
+import { cookieValue } from './_utils'
+export const onRequestPost=async({request,env}:{request:Request;env:any})=>{const session=cookieValue(request,'abc_session');if(session)await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(session).run();return new Response(JSON.stringify({ok:true}),{headers:{'Content-Type':'application/json','Set-Cookie':'abc_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0'}})}
