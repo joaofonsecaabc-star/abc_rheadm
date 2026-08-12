@@ -14,6 +14,7 @@ export type CloudState = {
 export const cloudEnabled = () => !['localhost','127.0.0.1'].includes(location.hostname)
 
 export type CloudUser = { id:number; username:string; fullName:string; role:'admin'|'operator'; active:boolean; password?:string; lastLoginAt?:string|null; createdAt?:string }
+export type SessionUser = { id:number; username:string; fullName:string; role:'admin'|'operator' }
 
 async function apiJson<T>(url:string, options?:RequestInit):Promise<T>{
   const response=await fetch(url,options)
@@ -37,6 +38,14 @@ export async function cloudLogin(username:string,password:string){
   return apiJson<{ok?:boolean;error?:string}>('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})})
 }
 export async function cloudSession(){if(!cloudEnabled())return true;return (await fetch('/api/auth/session')).ok}
+export async function cloudCurrentUser():Promise<SessionUser|null>{
+  if(!cloudEnabled())return {id:0,username:'local',fullName:'João Fonseca',role:'admin'}
+  const response=await fetch('/api/auth/session',{headers:{Accept:'application/json'}})
+  if(!response.ok)return null
+  const data=await response.json() as {user?:{id:number;username:string;fullName?:string;full_name?:string;role:'admin'|'operator'}}
+  if(!data.user)return null
+  return {id:data.user.id,username:data.user.username,fullName:data.user.fullName||data.user.full_name||data.user.username,role:data.user.role}
+}
 export async function cloudLogout(){if(cloudEnabled())await fetch('/api/auth/logout',{method:'POST'})}
 
 export async function loadCloudState(): Promise<CloudState | null> {
