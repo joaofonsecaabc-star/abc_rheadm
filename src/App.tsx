@@ -4684,6 +4684,24 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   );
 }
 
+function InitialLoadingScreen() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-[#f4f5f7] px-6 dark:bg-[#101216]">
+      <div className="flex flex-col items-center" role="status" aria-live="polite">
+        <img
+          src="/sacolao-abc-logo.png?v=4"
+          alt="Sacolão ABC"
+          className="h-24 w-60 object-contain"
+        />
+        <div className="mt-7 h-8 w-8 animate-spin rounded-full border-[3px] border-slate-300 border-t-[#262626] dark:border-slate-700 dark:border-t-white" />
+        <p className="mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">
+          Carregando o sistema...
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function ModuleMenu({
   select,
   onLogout,
@@ -5836,7 +5854,8 @@ function OccurrencesPage({
 
 export default function App() {
   const [needsSetup, setNeedsSetup] = useState(false),
-    [authChecked, setAuthChecked] = useState(() => !cloudEnabled());
+    [authChecked, setAuthChecked] = useState(() => !cloudEnabled()),
+    [sessionChecked, setSessionChecked] = useState(() => !cloudEnabled());
   const now = new Date();
   const [dark, setDark] = useState(
     () => localStorage.getItem("valefluxo_theme") === "dark",
@@ -5986,7 +6005,8 @@ export default function App() {
     if (cloudEnabled())
       cloudSession()
         .then(setLoggedIn)
-        .catch(() => setLoggedIn(false));
+        .catch(() => setLoggedIn(false))
+        .finally(() => setSessionChecked(true));
   }, []);
   useEffect(() => {
     if (!cloudEnabled()) return;
@@ -6219,6 +6239,7 @@ export default function App() {
     setModule(null);
     setSide(false);
   };
+  if (!authChecked || !sessionChecked) return <InitialLoadingScreen />;
   if (!loggedIn)
     return (
       <LoginScreen
