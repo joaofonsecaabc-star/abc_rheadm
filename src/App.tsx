@@ -13,6 +13,7 @@ import {
   Clock3,
   CreditCard,
   Download,
+  DollarSign,
   FileSpreadsheet,
   LayoutDashboard,
   Menu,
@@ -169,7 +170,16 @@ const statusStyle: Record<Status, string> = {
   Atrasado: "bg-red-50 text-red-700 border-red-200",
   Próximo: "bg-blue-50 text-blue-700 border-blue-200",
 };
-type Module = "people" | "transit";
+type Module = "people" | "transit" | "finance";
+type FinancialEntry = {
+  id: number;
+  employeeId: number;
+  period: string;
+  salary: number;
+  advance: number;
+  salaryPaidAt?: string;
+  advancePaidAt?: string;
+};
 function DismissedEmployeesPage({
   rows,
   restore,
@@ -276,6 +286,10 @@ const transitNav = [
   ["Recargas", Ticket],
   ["Calendário", CalendarDays],
   ["Relatórios", FileSpreadsheet],
+] as const;
+const financeNav = [
+  ["Visão geral", LayoutDashboard],
+  ["Folha mensal", DollarSign],
 ] as const;
 const formatCpf = (value: string) =>
   value
@@ -460,7 +474,12 @@ function Sidebar({
 }) {
   const [userMenu, setUserMenu] = useState(false),
     [signedUser, setSignedUser] = useState<SessionUser | null>(null),
-    nav = module === "people" ? peopleNav : transitNav;
+    nav =
+      module === "people"
+        ? peopleNav
+        : module === "transit"
+          ? transitNav
+          : financeNav;
   useEffect(() => {
     void cloudCurrentUser().then(setSignedUser);
   }, []);
@@ -488,7 +507,11 @@ function Sidebar({
             className="h-[82px] w-[208px] object-contain"
           />
           <span className="text-[9px] font-semibold uppercase tracking-[.18em] text-white/60">
-            {module === "people" ? "Gestão de pessoas" : "Cartões de passagem"}
+            {module === "people"
+              ? "Gestão de pessoas"
+              : module === "transit"
+                ? "Cartões de passagem"
+                : "Gestão financeira"}
           </span>
           <button onClick={close} className="absolute right-4 top-4 lg:hidden">
             <X size={20} />
@@ -610,7 +633,9 @@ function Header({
         <div className="text-xs text-slate-400">
           {module === "people"
             ? "Gestão de Pessoas"
-            : "Gestão de Cartões de Passagem"}
+            : module === "transit"
+              ? "Gestão de Cartões de Passagem"
+              : "Gestão Financeira"}
         </div>
         <h1 className="text-xl font-bold text-slate-900">{page}</h1>
       </div>
@@ -4729,7 +4754,7 @@ function ModuleMenu({
 }) {
   return (
     <div className="module-menu min-h-screen bg-slate-100 px-4 py-8 dark:bg-[#111317] sm:px-8">
-      <div className="mx-auto flex max-w-5xl items-center justify-between">
+      <div className="mx-auto flex max-w-7xl items-center justify-between">
         <img
           src="/sacolao-abc-logo.png?v=4"
           alt="Sacolão ABC"
@@ -4751,7 +4776,7 @@ function ModuleMenu({
           </button>
         </div>
       </div>
-      <main className="mx-auto flex min-h-[calc(100vh-130px)] max-w-5xl flex-col justify-center py-10">
+      <main className="mx-auto flex min-h-[calc(100vh-130px)] max-w-7xl flex-col justify-center py-10">
         <div className="text-center">
           <span className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">
             Menu principal
@@ -4761,10 +4786,10 @@ function ModuleMenu({
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-slate-500 dark:text-slate-400">
             Escolha uma área para continuar. Os funcionários cadastrados são
-            compartilhados entre os dois módulos.
+            compartilhados entre os três módulos.
           </p>
         </div>
-        <div className="mt-10 grid gap-5 md:grid-cols-2">
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
           <button
             onClick={() => select("people")}
             className="module-card group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-soft transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl dark:border-slate-700 dark:bg-[#25272b] dark:hover:border-slate-500 sm:p-9"
@@ -4807,6 +4832,24 @@ function ModuleMenu({
                 className="transition group-hover:translate-x-1"
                 size={18}
               />
+            </span>
+          </button>
+          <button
+            onClick={() => select("finance")}
+            className="module-card group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-soft transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl dark:border-slate-700 dark:bg-[#25272b] dark:hover:border-slate-500 sm:p-9"
+          >
+            <div className="module-icon grid h-14 w-14 place-items-center rounded-2xl bg-[#262626] text-white">
+              <DollarSign size={28} />
+            </div>
+            <h2 className="mt-7 text-2xl font-bold text-slate-900 dark:text-white">
+              Gestão Financeira
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              Salários, adiantamentos do dia 20 e controle mensal das saídas de caixa.
+            </p>
+            <span className="mt-7 flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-white">
+              Entrar no financeiro
+              <ChevronRight className="transition group-hover:translate-x-1" size={18} />
             </span>
           </button>
         </div>
@@ -4986,6 +5029,145 @@ function HRModal({
         </form>
       </div>
     </div>
+  );
+}
+
+function FinancePage({
+  employees,
+  entries,
+  setEntries,
+  period,
+  setPeriod,
+}: {
+  employees: Recharge[];
+  entries: FinancialEntry[];
+  setEntries: (entries: FinancialEntry[]) => void;
+  period: string;
+  setPeriod: (period: string) => void;
+}) {
+  const current = entries.filter((entry) => entry.period === period),
+    byEmployee = new Map(current.map((entry) => [entry.employeeId, entry])),
+    money = (value: number) =>
+      (value || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }),
+    plannedSalary = current.reduce((sum, entry) => sum + entry.salary, 0),
+    plannedAdvance = current.reduce((sum, entry) => sum + entry.advance, 0),
+    paid = current.reduce(
+      (sum, entry) =>
+        sum +
+        (entry.salaryPaidAt ? entry.salary : 0) +
+        (entry.advancePaidAt ? entry.advance : 0),
+      0,
+    ),
+    planned = plannedSalary + plannedAdvance,
+    update = (employeeId: number, patch: Partial<FinancialEntry>) => {
+      const existing = byEmployee.get(employeeId),
+        next: FinancialEntry = {
+          id: existing?.id || Date.now() + employeeId,
+          employeeId,
+          period,
+          salary: existing?.salary || 0,
+          advance: existing?.advance || 0,
+          salaryPaidAt: existing?.salaryPaidAt,
+          advancePaidAt: existing?.advancePaidAt,
+          ...patch,
+        };
+      setEntries([
+        ...entries.filter(
+          (entry) => !(entry.employeeId === employeeId && entry.period === period),
+        ),
+        next,
+      ]);
+    };
+  return (
+    <main className="fade-in p-4 sm:p-7">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <SectionHead
+          title="Gestão Financeira"
+          sub="Salários, adiantamentos e controle de saída de caixa"
+        />
+        <label className="text-xs font-semibold text-slate-500">
+          Mês de referência
+          <input
+            type="month"
+            value={period}
+            onChange={(event) => setPeriod(event.target.value)}
+            className="mt-1 block rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold outline-none"
+          />
+        </label>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Salários do mês", plannedSalary, "Folha cadastrada"],
+          ["Adiantamentos dia 20", plannedAdvance, "Valores cadastrados"],
+          ["Total já pago", paid, "Saída realizada"],
+          ["Pendente", Math.max(0, planned - paid), "Saída prevista"],
+        ].map(([title, value, sub]) => (
+          <div key={String(title)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-700">
+              <DollarSign size={20} />
+            </div>
+            <div className="mt-4 text-2xl font-bold">{money(Number(value))}</div>
+            <div className="mt-1 text-sm font-semibold text-slate-700">{title}</div>
+            <div className="mt-1 text-xs text-slate-400">{sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h3 className="font-bold">Folha mensal por funcionário</h3>
+          <p className="text-xs text-slate-400">
+            Informe os valores e registre a data em que cada pagamento saiu do caixa.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+              <tr>
+                <th className="px-5 py-3">Funcionário</th>
+                <th className="px-5 py-3">Loja / Função</th>
+                <th className="px-5 py-3">Salário do mês</th>
+                <th className="px-5 py-3">Adiantamento dia 20</th>
+                <th className="px-5 py-3">Pagamento do adiantamento</th>
+                <th className="px-5 py-3">Pagamento do salário</th>
+                <th className="px-5 py-3">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {employees.map((employee) => {
+                const entry = byEmployee.get(employee.id);
+                return (
+                  <tr key={employee.id}>
+                    <td className="px-5 py-4 font-semibold">{employee.employee}</td>
+                    <td className="px-5 py-4">
+                      {employee.store}<div className="text-xs text-slate-400">{employee.role}</div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <input type="number" min="0" step="0.01" value={entry?.salary || ""} onChange={(event) => update(employee.id, { salary: Number(event.target.value) })} placeholder="R$ 0,00" className="w-36 rounded-lg border border-slate-200 px-3 py-2" />
+                    </td>
+                    <td className="px-5 py-4">
+                      <input type="number" min="0" step="0.01" value={entry?.advance || ""} onChange={(event) => update(employee.id, { advance: Number(event.target.value) })} placeholder="R$ 0,00" className="w-36 rounded-lg border border-slate-200 px-3 py-2" />
+                    </td>
+                    <td className="px-5 py-4">
+                      <input type="date" value={entry?.advancePaidAt || ""} onChange={(event) => update(employee.id, { advancePaidAt: event.target.value || undefined })} className="rounded-lg border border-slate-200 px-3 py-2" />
+                    </td>
+                    <td className="px-5 py-4">
+                      <input type="date" value={entry?.salaryPaidAt || ""} onChange={(event) => update(employee.id, { salaryPaidAt: event.target.value || undefined })} className="rounded-lg border border-slate-200 px-3 py-2" />
+                    </td>
+                    <td className="px-5 py-4 font-bold">{money((entry?.salary || 0) + (entry?.advance || 0))}</td>
+                  </tr>
+                );
+              })}
+              {!employees.length && (
+                <tr><td colSpan={7} className="py-12 text-center text-slate-400">Nenhum funcionário encontrado para os filtros selecionados.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
   );
 }
 
@@ -6074,6 +6256,13 @@ export default function App() {
       return [];
     }
   });
+  const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("abc_financial_entries") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const [manualMode, setManualMode] = useState(false);
   const [cloudReady, setCloudReady] = useState(false);
   useEffect(() => {
@@ -6100,6 +6289,9 @@ export default function App() {
       JSON.stringify(occurrences),
     );
   }, [occurrences]);
+  useEffect(() => {
+    localStorage.setItem("abc_financial_entries", JSON.stringify(financialEntries));
+  }, [financialEntries]);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("valefluxo_theme", dark ? "dark" : "light");
@@ -6128,6 +6320,11 @@ export default function App() {
           setStores(state.stores);
           setPositions(state.positions);
           setUnregisteredReasons(state.unregisteredReasons);
+          setFinancialEntries(
+            Array.isArray(state.settings?.financialEntries)
+              ? (state.settings.financialEntries as FinancialEntry[])
+              : [],
+          );
         }
         setCloudReady(true);
       })
@@ -6151,6 +6348,7 @@ export default function App() {
         unregisteredReasons,
         settings: {
           advanceDays: Number(localStorage.getItem("valefluxo_advance") || 3),
+          financialEntries,
         },
       }).catch((error) => console.error("Falha ao salvar no D1", error));
     }, 700);
@@ -6163,6 +6361,7 @@ export default function App() {
     stores,
     positions,
     unregisteredReasons,
+    financialEntries,
   ]);
   useEffect(() => {
     if (cloudEnabled())
@@ -6300,6 +6499,14 @@ export default function App() {
         rows={rows}
         setRows={setRows}
         module={module || "people"}
+      />
+    ) : module === "finance" ? (
+      <FinancePage
+        employees={filteredEmployees}
+        entries={financialEntries}
+        setEntries={setFinancialEntries}
+        period={period}
+        setPeriod={setPeriod}
       />
     ) : module === "people" ? (
       page === "Visão geral" ? (
