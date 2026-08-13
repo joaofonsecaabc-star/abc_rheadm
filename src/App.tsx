@@ -5086,6 +5086,10 @@ function FinancePage({
 }) {
   const [generalSalaryDate, setGeneralSalaryDate] = useState("");
   const [generalAdvanceDate, setGeneralAdvanceDate] = useState("");
+  const [financialDetail, setFinancialDetail] = useState<{
+    key: "salary" | "advance" | "vacation" | "severance" | "pending" | "paid";
+    title: string;
+  } | null>(null);
   const visibleEmployeeIds = new Set(employees.map((employee) => employee.id));
   const current = entries.filter(
       (entry) => entry.period === period && visibleEmployeeIds.has(entry.employeeId),
@@ -5195,6 +5199,32 @@ function FinancePage({
     setGeneralSalaryDate("");
     setGeneralAdvanceDate("");
   }, [period]);
+  const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
+  const detailRows = financialDetail
+    ? current
+        .map((entry) => {
+          const employee = employeeById.get(entry.employeeId),
+            categories = [
+              { key: "salary", label: "Salário", value: entry.salary, date: entry.salaryPaidAt },
+              { key: "advance", label: "Adiantamento", value: entry.advance, date: entry.advancePaidAt },
+              { key: "vacation", label: "Férias", value: entry.vacation || 0, date: entry.vacationPaidAt },
+              { key: "severance", label: "Verbas rescisórias", value: entry.severance || 0, date: entry.severancePaidAt },
+            ],
+            selected =
+              financialDetail.key === "paid"
+                ? categories.filter((item) => item.value > 0 && paymentReached(item.date))
+                : financialDetail.key === "pending"
+                  ? categories.filter((item) => item.value > 0 && !paymentReached(item.date))
+                  : categories.filter((item) => item.key === financialDetail.key && item.value > 0);
+          return {
+            employee,
+            amount: selected.reduce((sum, item) => sum + item.value, 0),
+            items: selected,
+          };
+        })
+        .filter((row) => row.employee && row.amount > 0)
+        .sort((a, b) => b.amount - a.amount)
+    : [];
   return (
     <main className="fade-in p-4 sm:p-7">
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
@@ -5214,21 +5244,21 @@ function FinancePage({
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {[
-          { title: "Pagamento de salário", value: plannedSalary, sub: "Folha cadastrada", icon: Banknote, card: "border-t-blue-500", iconStyle: "bg-blue-50 text-blue-700", valueStyle: "text-blue-700" },
-          { title: "Pagamento de adiantamento", value: plannedAdvance, sub: "Valores cadastrados", icon: HandCoins, card: "border-t-violet-500", iconStyle: "bg-violet-50 text-violet-700", valueStyle: "text-violet-700" },
-          { title: "Férias", value: plannedVacation, sub: "Valores cadastrados", icon: Umbrella, card: "border-t-amber-500", iconStyle: "bg-amber-50 text-amber-700", valueStyle: "text-amber-700" },
-          { title: "Verbas rescisórias", value: plannedSeverance, sub: "Valores cadastrados", icon: ReceiptText, card: "border-t-red-500", iconStyle: "bg-red-50 text-red-700", valueStyle: "text-red-700" },
-          { title: "Pendente", value: Math.max(0, planned - paid), sub: "Saída prevista", icon: Hourglass, card: "border-t-orange-500", iconStyle: "bg-orange-50 text-orange-700", valueStyle: "text-orange-700" },
-          { title: "Total já pago", value: paid, sub: "Saída realizada", icon: BadgeCheck, card: "border-t-green-500", iconStyle: "bg-green-50 text-green-700", valueStyle: "text-green-700" },
-        ].map(({ title, value, sub, icon: Icon, card, iconStyle, valueStyle }) => (
-          <div key={title} className={`rounded-2xl border border-t-4 border-slate-200 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}>
+          { key: "salary" as const, title: "Pagamento de salário", value: plannedSalary, sub: "Folha cadastrada", icon: Banknote, card: "border-t-blue-500", iconStyle: "bg-blue-50 text-blue-700", valueStyle: "text-blue-700" },
+          { key: "advance" as const, title: "Pagamento de adiantamento", value: plannedAdvance, sub: "Valores cadastrados", icon: HandCoins, card: "border-t-violet-500", iconStyle: "bg-violet-50 text-violet-700", valueStyle: "text-violet-700" },
+          { key: "vacation" as const, title: "Férias", value: plannedVacation, sub: "Valores cadastrados", icon: Umbrella, card: "border-t-amber-500", iconStyle: "bg-amber-50 text-amber-700", valueStyle: "text-amber-700" },
+          { key: "severance" as const, title: "Verbas rescisórias", value: plannedSeverance, sub: "Valores cadastrados", icon: ReceiptText, card: "border-t-red-500", iconStyle: "bg-red-50 text-red-700", valueStyle: "text-red-700" },
+          { key: "pending" as const, title: "Pendente", value: Math.max(0, planned - paid), sub: "Saída prevista", icon: Hourglass, card: "border-t-orange-500", iconStyle: "bg-orange-50 text-orange-700", valueStyle: "text-orange-700" },
+          { key: "paid" as const, title: "Total já pago", value: paid, sub: "Saída realizada", icon: BadgeCheck, card: "border-t-green-500", iconStyle: "bg-green-50 text-green-700", valueStyle: "text-green-700" },
+        ].map(({ key, title, value, sub, icon: Icon, card, iconStyle, valueStyle }) => (
+          <button type="button" onClick={() => setFinancialDetail({ key, title })} key={title} className={`rounded-2xl border border-t-4 border-slate-200 bg-white p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}>
             <div className={`grid h-11 w-11 place-items-center rounded-xl ${iconStyle}`}>
               <Icon size={21} />
             </div>
             <div className={`mt-4 text-2xl font-bold ${valueStyle}`}>{money(Number(value))}</div>
             <div className="mt-1 text-sm font-semibold text-slate-700">{title}</div>
             <div className="mt-1 text-xs text-slate-400">{sub}</div>
-          </div>
+          </button>
         ))}
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -5399,6 +5429,28 @@ function FinancePage({
         </div>
       </div>
       </>}
+      {financialDetail && createPortal(
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={() => setFinancialDetail(null)}>
+          <div className="max-h-[82vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="flex items-center border-b border-slate-200 px-6 py-5">
+              <div><h3 className="text-xl font-bold">{financialDetail.title}</h3><p className="text-sm text-slate-400">{capitalizeMonth(new Date(`${period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }))} · {detailRows.length} funcionário(s)</p></div>
+              <button type="button" onClick={() => setFinancialDetail(null)} className="ml-auto rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button>
+            </div>
+            <div className="max-h-[65vh] overflow-y-auto p-5">
+              <div className="space-y-3">
+                {detailRows.map(({ employee, amount, items }) => (
+                  <div key={employee!.id} className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3"><div><b>{employee!.employee}</b><div className="text-xs text-slate-400">{employee!.store} · {employee!.role}</div></div><b className="text-lg">{money(amount)}</b></div>
+                    <div className="mt-3 flex flex-wrap gap-2">{items.map((item) => <span key={item.key} className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600"><b>{item.label}:</b> {money(item.value)} · {item.date ? formatDate(item.date) : "Sem data"}</span>)}</div>
+                  </div>
+                ))}
+                {!detailRows.length && <p className="py-12 text-center text-sm text-slate-400">Nenhum lançamento nesta categoria.</p>}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </main>
   );
 }
