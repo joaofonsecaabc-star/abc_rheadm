@@ -5062,7 +5062,33 @@ function HRPage({
       );
     }),
     withoutFormal = active.filter((r) => r.formalEmployment === false),
-    critical = active.filter((r) => r.experienceCritical);
+    critical = active.filter((r) => r.experienceCritical),
+    monthlyOccurrences = occurrences.filter((item) => {
+      const date = new Date(item.date + "T12:00:00");
+      return (
+        rowById.has(item.employeeId) &&
+        date.getFullYear() === today.getFullYear() &&
+        date.getMonth() === today.getMonth()
+      );
+    }),
+    occurrenceRanking = (type: "Falta" | "Atestado") => {
+      const totals = new Map<number, number>();
+      monthlyOccurrences
+        .filter((item) => item.type === type)
+        .forEach((item) =>
+          totals.set(item.employeeId, (totals.get(item.employeeId) || 0) + 1),
+        );
+      return [...totals.entries()]
+        .map(([employeeId, count]) => ({
+          employee: rowById.get(employeeId)!,
+          count,
+        }))
+        .filter((item) => item.employee && !isEmployeeDismissed(item.employee))
+        .sort((a, b) => b.count - a.count || a.employee.employee.localeCompare(b.employee.employee))
+        .slice(0, 5);
+    },
+    absenceRanking = occurrenceRanking("Falta"),
+    certificateRanking = occurrenceRanking("Atestado");
   return (
     <main className="fade-in p-4 sm:p-7">
       <SectionHead
@@ -5133,6 +5159,70 @@ function HRPage({
           sub="Acompanhamento prioritário"
           icon={Bell}
         />
+      </div>
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div>
+          <h3 className="font-bold">Indicadores de frequência</h3>
+          <p className="text-xs text-slate-400">
+            Funcionários com mais ocorrências em {currentMonthLabel}
+          </p>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          {[
+            {
+              title: "Mais faltas",
+              singular: "falta",
+              plural: "faltas",
+              icon: TriangleAlert,
+              ranking: absenceRanking,
+              tone: "text-red-600 bg-red-50",
+            },
+            {
+              title: "Mais atestados",
+              singular: "atestado",
+              plural: "atestados",
+              icon: FileSpreadsheet,
+              ranking: certificateRanking,
+              tone: "text-amber-700 bg-amber-50",
+            },
+          ].map((indicator) => {
+            const Icon = indicator.icon;
+            return (
+              <div key={indicator.title} className="rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${indicator.tone}`}>
+                    <Icon size={19} />
+                  </div>
+                  <div>
+                    <b className="text-sm">{indicator.title}</b>
+                    <div className="text-xs text-slate-400">Ranking do mês</div>
+                  </div>
+                </div>
+                <div className="mt-3 divide-y divide-slate-100">
+                  {indicator.ranking.map(({ employee, count }, index) => (
+                    <div key={employee.id} className="flex items-center gap-3 py-3">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold">{employee.employee}</div>
+                        <div className="truncate text-xs text-slate-400">{employee.store}</div>
+                      </div>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                        {count} {count === 1 ? indicator.singular : indicator.plural}
+                      </span>
+                    </div>
+                  ))}
+                  {!indicator.ranking.length && (
+                    <p className="py-6 text-center text-sm text-slate-400">
+                      Nenhum registro neste mês.
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
       <div className="mt-5 rounded-2xl border border-slate-300 bg-white p-5 shadow-soft">
         <div className="flex items-center gap-3">
