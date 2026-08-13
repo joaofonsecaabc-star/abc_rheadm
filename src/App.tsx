@@ -5216,8 +5216,8 @@ function FinancePage({
           { title: "Pagamento de adiantamento", value: plannedAdvance, sub: "Valores cadastrados", icon: HandCoins, card: "border-t-violet-500", iconStyle: "bg-violet-50 text-violet-700", valueStyle: "text-violet-700" },
           { title: "Férias", value: plannedVacation, sub: "Valores cadastrados", icon: Umbrella, card: "border-t-amber-500", iconStyle: "bg-amber-50 text-amber-700", valueStyle: "text-amber-700" },
           { title: "Verbas rescisórias", value: plannedSeverance, sub: "Valores cadastrados", icon: ReceiptText, card: "border-t-red-500", iconStyle: "bg-red-50 text-red-700", valueStyle: "text-red-700" },
-          { title: "Total já pago", value: paid, sub: "Saída realizada", icon: BadgeCheck, card: "border-t-green-500", iconStyle: "bg-green-50 text-green-700", valueStyle: "text-green-700" },
           { title: "Pendente", value: Math.max(0, planned - paid), sub: "Saída prevista", icon: Hourglass, card: "border-t-orange-500", iconStyle: "bg-orange-50 text-orange-700", valueStyle: "text-orange-700" },
+          { title: "Total já pago", value: paid, sub: "Saída realizada", icon: BadgeCheck, card: "border-t-green-500", iconStyle: "bg-green-50 text-green-700", valueStyle: "text-green-700" },
         ].map(({ title, value, sub, icon: Icon, card, iconStyle, valueStyle }) => (
           <div key={title} className={`rounded-2xl border border-t-4 border-slate-200 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}>
             <div className={`grid h-11 w-11 place-items-center rounded-xl ${iconStyle}`}>
