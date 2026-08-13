@@ -5047,7 +5047,10 @@ function FinancePage({
 }) {
   const [generalSalaryDate, setGeneralSalaryDate] = useState("");
   const [generalAdvanceDate, setGeneralAdvanceDate] = useState("");
-  const current = entries.filter((entry) => entry.period === period),
+  const visibleEmployeeIds = new Set(employees.map((employee) => employee.id));
+  const current = entries.filter(
+      (entry) => entry.period === period && visibleEmployeeIds.has(entry.employeeId),
+    ),
     byEmployee = new Map(current.map((entry) => [entry.employeeId, entry])),
     money = (value: number) =>
       (value || 0).toLocaleString("pt-BR", {
@@ -5064,6 +5067,24 @@ function FinancePage({
       0,
     ),
     planned = plannedSalary + plannedAdvance,
+    storeBreakdown = [...new Set(employees.map((employee) => employee.store))]
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map((store) => {
+        const ids = new Set(
+          employees
+            .filter((employee) => employee.store === store)
+            .map((employee) => employee.id),
+        );
+        return {
+          store,
+          salary: current
+            .filter((entry) => ids.has(entry.employeeId))
+            .reduce((sum, entry) => sum + entry.salary, 0),
+          advance: current
+            .filter((entry) => ids.has(entry.employeeId))
+            .reduce((sum, entry) => sum + entry.advance, 0),
+        };
+      }),
     update = (employeeId: number, patch: Partial<FinancialEntry>) => {
       const existing = byEmployee.get(employeeId),
         next: FinancialEntry = {
@@ -5148,6 +5169,46 @@ function FinancePage({
             <div className="mt-4 text-2xl font-bold">{money(Number(value))}</div>
             <div className="mt-1 text-sm font-semibold text-slate-700">{title}</div>
             <div className="mt-1 text-xs text-slate-400">{sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {[
+          {
+            title: "Pagamento de salário por loja",
+            field: "salary" as const,
+          },
+          {
+            title: "Pagamento de adiantamento por loja",
+            field: "advance" as const,
+          },
+        ].map((indicator) => (
+          <div
+            key={indicator.title}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-700">
+                <Store size={19} />
+              </div>
+              <div>
+                <h3 className="font-bold">{indicator.title}</h3>
+                <p className="text-xs text-slate-400">Valores do mês selecionado</p>
+              </div>
+            </div>
+            <div className="mt-4 divide-y divide-slate-100">
+              {storeBreakdown.map((item) => (
+                <div key={item.store} className="flex items-center justify-between gap-4 py-3">
+                  <span className="text-sm font-semibold text-slate-600">{item.store}</span>
+                  <b className="text-sm">{money(item[indicator.field])}</b>
+                </div>
+              ))}
+              {!storeBreakdown.length && (
+                <p className="py-5 text-center text-sm text-slate-400">
+                  Nenhuma loja encontrada para os filtros selecionados.
+                </p>
+              )}
+            </div>
           </div>
         ))}
       </div>
