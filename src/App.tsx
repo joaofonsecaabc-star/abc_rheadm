@@ -177,8 +177,13 @@ type FinancialEntry = {
   period: string;
   salary: number;
   advance: number;
+  vacation?: number;
+  severance?: number;
   salaryPaidAt?: string;
   advancePaidAt?: string;
+  vacationPaidAt?: string;
+  severancePaidAt?: string;
+  noPayments?: boolean;
 };
 function DismissedEmployeesPage({
   rows,
@@ -289,6 +294,7 @@ const transitNav = [
 ] as const;
 const financeNav = [
   ["Folha mensal", DollarSign],
+  ["Cadastros", Plus],
   ["Relatórios", FileSpreadsheet],
 ] as const;
 const formatCpf = (value: string) =>
@@ -5059,14 +5065,18 @@ function FinancePage({
       }),
     plannedSalary = current.reduce((sum, entry) => sum + entry.salary, 0),
     plannedAdvance = current.reduce((sum, entry) => sum + entry.advance, 0),
+    plannedVacation = current.reduce((sum, entry) => sum + (entry.vacation || 0), 0),
+    plannedSeverance = current.reduce((sum, entry) => sum + (entry.severance || 0), 0),
     paid = current.reduce(
       (sum, entry) =>
         sum +
         (entry.salaryPaidAt ? entry.salary : 0) +
-        (entry.advancePaidAt ? entry.advance : 0),
+        (entry.advancePaidAt ? entry.advance : 0) +
+        (entry.vacationPaidAt ? entry.vacation || 0 : 0) +
+        (entry.severancePaidAt ? entry.severance || 0 : 0),
       0,
     ),
-    planned = plannedSalary + plannedAdvance,
+    planned = plannedSalary + plannedAdvance + plannedVacation + plannedSeverance,
     storeBreakdown = [...new Set(employees.map((employee) => employee.store))]
       .sort((a, b) => a.localeCompare(b, "pt-BR"))
       .map((store) => {
@@ -5093,8 +5103,13 @@ function FinancePage({
           period,
           salary: existing?.salary || 0,
           advance: existing?.advance || 0,
+          vacation: existing?.vacation || 0,
+          severance: existing?.severance || 0,
           salaryPaidAt: existing?.salaryPaidAt,
           advancePaidAt: existing?.advancePaidAt,
+          vacationPaidAt: existing?.vacationPaidAt,
+          severancePaidAt: existing?.severancePaidAt,
+          noPayments: existing?.noPayments,
           ...patch,
         };
       setEntries([
@@ -5119,8 +5134,13 @@ function FinancePage({
             period,
             salary: existing?.salary || 0,
             advance: existing?.advance || 0,
+            vacation: existing?.vacation || 0,
+            severance: existing?.severance || 0,
             salaryPaidAt: existing?.salaryPaidAt,
             advancePaidAt: existing?.advancePaidAt,
+            vacationPaidAt: existing?.vacationPaidAt,
+            severancePaidAt: existing?.severancePaidAt,
+            noPayments: existing?.noPayments,
             [field]: date || undefined,
           } as FinancialEntry;
         });
@@ -5155,10 +5175,12 @@ function FinancePage({
           />
         </label>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {[
           ["Pagamento de salário", plannedSalary, "Folha cadastrada"],
           ["Pagamento de adiantamento", plannedAdvance, "Valores cadastrados"],
+          ["Férias", plannedVacation, "Valores cadastrados"],
+          ["Verbas rescisórias", plannedSeverance, "Valores cadastrados"],
           ["Total já pago", paid, "Saída realizada"],
           ["Pendente", Math.max(0, planned - paid), "Saída prevista"],
         ].map(([title, value, sub]) => (
@@ -5268,7 +5290,7 @@ function FinancePage({
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full min-w-[1450px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-400">
               <tr>
                 <th className="px-5 py-3">Funcionário</th>
@@ -5277,7 +5299,10 @@ function FinancePage({
                 <th className="px-5 py-3">Pagamento do salário</th>
                 <th className="px-5 py-3">Adiantamento dia 20</th>
                 <th className="px-5 py-3">Pagamento do adiantamento</th>
+                <th className="px-5 py-3">Férias</th>
+                <th className="px-5 py-3">Verbas rescisórias</th>
                 <th className="px-5 py-3">Total</th>
+                <th className="px-5 py-3">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -5308,16 +5333,104 @@ function FinancePage({
                     <td className="px-5 py-4">
                       <input type="date" value={entry?.advancePaidAt || ""} onChange={(event) => update(employee.id, { advancePaidAt: event.target.value || undefined })} className="rounded-lg border border-slate-200 px-3 py-2" />
                     </td>
-                    <td className="px-5 py-4 font-bold">{money((entry?.salary || 0) + (entry?.advance || 0))}</td>
+                    <td className="px-5 py-4">{money(entry?.vacation || 0)}</td>
+                    <td className="px-5 py-4">{money(entry?.severance || 0)}</td>
+                    <td className="px-5 py-4 font-bold">{money((entry?.salary || 0) + (entry?.advance || 0) + (entry?.vacation || 0) + (entry?.severance || 0))}</td>
+                    <td className="px-5 py-4">
+                      {employee.terminationDate ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Marcar ${employee.employee} como sem pagamentos em ${period.split("-").reverse().join("/")}?`))
+                              update(employee.id, { noPayments: true });
+                          }}
+                          className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600"
+                        >
+                          Sem pagamentos
+                        </button>
+                      ) : "-"}
+                    </td>
                   </tr>
                 );
               })}
               {!employees.length && (
-                <tr><td colSpan={7} className="py-12 text-center text-slate-400">Nenhum funcionário encontrado para os filtros selecionados.</td></tr>
+                <tr><td colSpan={10} className="py-12 text-center text-slate-400">Nenhum funcionário encontrado para os filtros selecionados.</td></tr>
               )}
             </tbody>
           </table>
         </div>
+      </div>
+    </main>
+  );
+}
+
+function FinancialRegistrations({
+  employees,
+  entries,
+  setEntries,
+  period,
+  setPeriod,
+}: {
+  employees: Recharge[];
+  entries: FinancialEntry[];
+  setEntries: (entries: FinancialEntry[]) => void;
+  period: string;
+  setPeriod: (period: string) => void;
+}) {
+  const byEmployee = new Map(
+      entries.filter((entry) => entry.period === period).map((entry) => [entry.employeeId, entry]),
+    ),
+    update = (employeeId: number, patch: Partial<FinancialEntry>) => {
+      const existing = byEmployee.get(employeeId),
+        next: FinancialEntry = {
+          id: existing?.id || Date.now() + employeeId,
+          employeeId,
+          period,
+          salary: existing?.salary || 0,
+          advance: existing?.advance || 0,
+          vacation: existing?.vacation || 0,
+          severance: existing?.severance || 0,
+          salaryPaidAt: existing?.salaryPaidAt,
+          advancePaidAt: existing?.advancePaidAt,
+          vacationPaidAt: existing?.vacationPaidAt,
+          severancePaidAt: existing?.severancePaidAt,
+          noPayments: existing?.noPayments,
+          ...patch,
+        };
+      setEntries([
+        ...entries.filter((entry) => !(entry.employeeId === employeeId && entry.period === period)),
+        next,
+      ]);
+    };
+  return (
+    <main className="fade-in p-4 sm:p-7">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <SectionHead title="Cadastros financeiros" sub="Cadastre salário, adiantamento, férias e verbas rescisórias" />
+        <label className="text-xs font-semibold text-slate-500">Mês de referência<input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} className="mt-1 block rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold outline-none" /></label>
+      </div>
+      <div className="space-y-4">
+        {employees.map((employee) => {
+          const entry = byEmployee.get(employee.id);
+          return (
+            <div key={employee.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div><h3 className="font-bold">{employee.employee}</h3><p className="text-xs text-slate-400">{employee.store} · {employee.role}</p></div>
+                {entry?.noPayments && <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">Sem pagamentos</span>}
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {([
+                  ["Salário", "salary" as const],
+                  ["Adiantamento", "advance" as const],
+                  ["Férias", "vacation" as const],
+                  ["Verbas rescisórias", "severance" as const],
+                ] as Array<[string, "salary" | "advance" | "vacation" | "severance"]>).map(([label, field]) => (
+                  <label key={field} className="text-xs font-semibold text-slate-500">{label}<input type="number" min="0" step="0.01" value={entry?.[field] || ""} onChange={(event) => update(employee.id, { [field]: Number(event.target.value), noPayments: false })} placeholder="R$ 0,00" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5" /></label>
+                ))}
+              </div>
+              {entry?.noPayments && <button type="button" onClick={() => update(employee.id, { noPayments: false })} className="mt-4 rounded-xl bg-forest-700 px-4 py-2.5 text-xs font-bold text-white">Voltar para a folha</button>}
+            </div>
+          );
+        })}
       </div>
     </main>
   );
@@ -5350,11 +5463,15 @@ function FinancialReports({
       }),
     totalSalary = rows.reduce((sum, row) => sum + (row.entry?.salary || 0), 0),
     totalAdvance = rows.reduce((sum, row) => sum + (row.entry?.advance || 0), 0),
+    totalVacation = rows.reduce((sum, row) => sum + (row.entry?.vacation || 0), 0),
+    totalSeverance = rows.reduce((sum, row) => sum + (row.entry?.severance || 0), 0),
     totalPaid = rows.reduce(
       (sum, row) =>
         sum +
         (row.entry?.salaryPaidAt ? row.entry.salary : 0) +
-        (row.entry?.advancePaidAt ? row.entry.advance : 0),
+        (row.entry?.advancePaidAt ? row.entry.advance : 0) +
+        (row.entry?.vacationPaidAt ? row.entry.vacation || 0 : 0) +
+        (row.entry?.severancePaidAt ? row.entry.severance || 0 : 0),
       0,
     ),
     reportRows = rows.map(({ employee, entry }) => ({
@@ -5365,7 +5482,9 @@ function FinancialReports({
       "Data do salário": entry?.salaryPaidAt || "Pendente",
       Adiantamento: entry?.advance || 0,
       "Data do adiantamento": entry?.advancePaidAt || "Pendente",
-      Total: (entry?.salary || 0) + (entry?.advance || 0),
+      Férias: entry?.vacation || 0,
+      "Verbas rescisórias": entry?.severance || 0,
+      Total: (entry?.salary || 0) + (entry?.advance || 0) + (entry?.vacation || 0) + (entry?.severance || 0),
     }));
   const exportExcel = () => {
     const workbook = XLSX.utils.book_new(),
@@ -5379,7 +5498,7 @@ function FinancialReports({
     pdf.text("Relatório financeiro", 14, 17);
     pdf.setFontSize(9);
     pdf.text(`Mês: ${period.split("-").reverse().join("/")} | Gerado em ${new Date().toLocaleString("pt-BR")}`, 14, 24);
-    pdf.text(`Previsto: ${currency(totalSalary + totalAdvance)} | Pago: ${currency(totalPaid)} | Pendente: ${currency(totalSalary + totalAdvance - totalPaid)}`, 14, 30);
+    pdf.text(`Previsto: ${currency(totalSalary + totalAdvance + totalVacation + totalSeverance)} | Pago: ${currency(totalPaid)} | Pendente: ${currency(totalSalary + totalAdvance + totalVacation + totalSeverance - totalPaid)}`, 14, 30);
     autoTable(pdf, {
       startY: 36,
       head: [["Funcionário", "Loja", "Função", "Salário", "Pgto. salário", "Adiantamento", "Pgto. adiantamento", "Total"]],
@@ -5412,7 +5531,7 @@ function FinancialReports({
           ["Pagamento de salário", totalSalary],
           ["Pagamento de adiantamento", totalAdvance],
           ["Total pago", totalPaid],
-          ["Pendente", Math.max(0, totalSalary + totalAdvance - totalPaid)],
+          ["Pendente", Math.max(0, totalSalary + totalAdvance + totalVacation + totalSeverance - totalPaid)],
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="text-xs font-semibold uppercase text-slate-400">{label}</div>
@@ -6781,7 +6900,7 @@ export default function App() {
   );
   const [financialYear, financialMonth] = period.split("-").map(Number),
     financialReference = new Date(financialYear, financialMonth - 1, 1, 12),
-    financeEmployees = rows.filter((record) => {
+    financeEligibleEmployees = rows.filter((record) => {
       const matchesFilters =
         (selectedStore === "Todas" || record.store === selectedStore) &&
         (selectedRole === "Todas" || record.role === selectedRole);
@@ -6802,7 +6921,15 @@ export default function App() {
           12,
         );
       return financialReference >= terminationMonth && financialReference < visibleUntil;
-    });
+    }),
+    noPaymentIds = new Set(
+      financialEntries
+        .filter((entry) => entry.period === period && entry.noPayments)
+        .map((entry) => entry.employeeId),
+    ),
+    financeEmployees = financeEligibleEmployees.filter(
+      (record) => !noPaymentIds.has(record.id),
+    );
   const content =
     page === "Configurações" ? (
       <ConfigurationsPage
@@ -6821,6 +6948,14 @@ export default function App() {
         <FinancialReports
           employees={financeEmployees}
           entries={financialEntries}
+          period={period}
+          setPeriod={setPeriod}
+        />
+      ) : page === "Cadastros" ? (
+        <FinancialRegistrations
+          employees={financeEligibleEmployees}
+          entries={financialEntries}
+          setEntries={setFinancialEntries}
           period={period}
           setPeriod={setPeriod}
         />
