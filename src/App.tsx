@@ -840,7 +840,7 @@ function IndicatorDetails({
     today = new Date();
   today.setHours(12, 0, 0, 0);
   const experienceDeadline = (r: Recharge) => {
-    if (!r.hiredAt) return null;
+    if (!r.hiredAt || r.formalEmployment === false) return null;
     const admission = new Date(r.hiredAt + "T12:00:00"),
       first = new Date(admission),
       final = new Date(admission);
@@ -882,7 +882,7 @@ function IndicatorDetails({
         0,
         Math.floor((today.getTime() - admission.getTime()) / 86400000),
       );
-    if (days < 90)
+    if (days < 90 && r.formalEmployment !== false)
       return { admission, text: `${days} dia(s) · Em experiência` };
     if (days < 365) {
       const months = Math.floor(days / 30),
@@ -1925,7 +1925,7 @@ function EmployeeModal({
                 onChange={(e) => set("birthDate", e.target.value)}
               />
             </Field>
-            <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            {form.formalEmployment && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Período de experiência
               </div>
@@ -1956,7 +1956,7 @@ function EmployeeModal({
                   </div>
                 );
               })()}
-            </div>
+            </div>}
             <Field label="Carteira assinada">
               <select
                 value={form.formalEmployment ? "Sim" : "Não"}
@@ -2589,7 +2589,9 @@ function TerminationModal({
         })()
       : null,
     inExperience =
-      !!experienceEnd && new Date(date + "T12:00:00") <= experienceEnd;
+      employee.formalEmployment !== false &&
+      !!experienceEnd &&
+      new Date(date + "T12:00:00") <= experienceEnd;
   return createPortal(
     <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
       <form
@@ -2750,7 +2752,7 @@ function HREmployeesPage({
             .includes(query.toLowerCase()),
       );
   const experiencePeriods = (r: Recharge) => {
-    if (!r.hiredAt) return null;
+    if (!r.hiredAt || r.formalEmployment === false) return null;
     const admission = new Date(r.hiredAt + "T12:00:00"),
       first = new Date(admission),
       final = new Date(admission);
@@ -5861,7 +5863,7 @@ function HRPage({
     daysUntil = (d: Date) =>
       Math.ceil((d.getTime() - today.getTime()) / 86400000);
   const experiences = active
-    .filter((r) => r.hiredAt)
+    .filter((r) => r.hiredAt && r.formalEmployment !== false)
     .map((r) => {
       const first = addDays(r.hiredAt!, 29),
         end = addDays(r.hiredAt!, 89),
@@ -6106,8 +6108,8 @@ function HRPage({
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {critical.map((r) => {
-            const first = r.hiredAt ? addDays(r.hiredAt, 29) : null,
-              end = r.hiredAt ? addDays(r.hiredAt, 89) : null;
+            const first = r.hiredAt && r.formalEmployment !== false ? addDays(r.hiredAt, 29) : null,
+              end = r.hiredAt && r.formalEmployment !== false ? addDays(r.hiredAt, 89) : null;
             return (
               <div
                 key={r.id}
@@ -6121,10 +6123,16 @@ function HRPage({
                 </div>
                 <div className="mt-2 text-xs text-red-700">
                   {r.store}
-                  <br />
-                  30 dias: {first ? first.toLocaleDateString("pt-BR") : "-"}
-                  <br />
-                  Final 60 dias: {end ? end.toLocaleDateString("pt-BR") : "-"}
+                  {r.formalEmployment === false ? (
+                    <><br />Sem carteira assinada</>
+                  ) : (
+                    <>
+                      <br />
+                      30 dias: {first ? first.toLocaleDateString("pt-BR") : "-"}
+                      <br />
+                      Final 60 dias: {end ? end.toLocaleDateString("pt-BR") : "-"}
+                    </>
+                  )}
                 </div>
               </div>
             );
@@ -6235,8 +6243,8 @@ function HRPage({
               {rows
                 .filter((r) => !isEmployeeDismissed(r))
                 .map((r) => {
-                  const firstExp = r.hiredAt ? addDays(r.hiredAt, 29) : null,
-                    exp = r.hiredAt ? addDays(r.hiredAt, 89) : null,
+                  const firstExp = r.hiredAt && r.formalEmployment !== false ? addDays(r.hiredAt, 29) : null,
+                    exp = r.hiredAt && r.formalEmployment !== false ? addDays(r.hiredAt, 89) : null,
                     status = isDismissalPending(r)
                       ? "Desligamento em andamento"
                       : r.employmentStatus || "Ativo";
