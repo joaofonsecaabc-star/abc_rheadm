@@ -5384,6 +5384,20 @@ function FinancialRegistrations({
 }) {
   const [generalSalaryDate, setGeneralSalaryDate] = useState("");
   const [generalAdvanceDate, setGeneralAdvanceDate] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const searchedEmployees = employees.filter((employee) =>
+    employee.employee
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .includes(
+        employeeSearch
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .trim(),
+      ),
+  );
   const byEmployee = new Map(
       entries.filter((entry) => entry.period === period).map((entry) => [entry.employeeId, entry]),
     ),
@@ -5417,8 +5431,8 @@ function FinancialRegistrations({
     },
     applyToAll = (field: "salaryPaidAt" | "advancePaidAt", date: string) => {
       if (!date) return;
-      const employeeIds = new Set(employees.map((employee) => employee.id)),
-        updated = employees.map((employee) => {
+      const employeeIds = new Set(searchedEmployees.map((employee) => employee.id)),
+        updated = searchedEmployees.map((employee) => {
           const existing = byEmployee.get(employee.id);
           return {
             id: existing?.id || Date.now() + employee.id,
@@ -5441,7 +5455,7 @@ function FinancialRegistrations({
         ...entries.filter((entry) => !(entry.period === period && employeeIds.has(entry.employeeId))),
         ...updated,
       ]);
-      alert(`Data aplicada para ${employees.length} funcionário(s).`);
+      alert(`Data aplicada para ${searchedEmployees.length} funcionário(s).`);
     };
   useEffect(() => {
     setGeneralSalaryDate("");
@@ -5461,8 +5475,24 @@ function FinancialRegistrations({
           <label className="text-sm font-semibold text-slate-600">Data do adiantamento<div className="mt-2 flex gap-2"><input type="date" value={generalAdvanceDate} onChange={(event) => setGeneralAdvanceDate(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3" /><button type="button" disabled={!generalAdvanceDate} onClick={() => applyToAll("advancePaidAt", generalAdvanceDate)} className="rounded-xl bg-forest-700 px-4 py-3 text-xs font-bold text-white disabled:opacity-40">Aplicar a todos</button></div></label>
         </div>
       </div>
+      <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-3.5 text-slate-400" size={19} />
+          <input
+            type="search"
+            value={employeeSearch}
+            onChange={(event) => setEmployeeSearch(event.target.value)}
+            placeholder="Pesquisar funcionário pelo nome..."
+            aria-label="Pesquisar funcionário pelo nome"
+            className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 outline-none focus:border-slate-400"
+          />
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Mostrando {searchedEmployees.length} de {employees.length} funcionário(s)
+        </p>
+      </div>
       <div className="space-y-4">
-        {employees.map((employee) => {
+        {searchedEmployees.map((employee) => {
           const entry = byEmployee.get(employee.id);
           return (
             <div key={employee.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
@@ -5484,6 +5514,11 @@ function FinancialRegistrations({
             </div>
           );
         })}
+        {!searchedEmployees.length && (
+          <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm text-slate-400 shadow-soft">
+            Nenhum funcionário encontrado.
+          </div>
+        )}
       </div>
     </main>
   );
