@@ -5109,6 +5109,9 @@ function FinancePage({
         ),
         ...updated,
       ]);
+      alert(
+        `Data aplicada para ${employees.length} funcionário(s) exibido(s).`,
+      );
     };
   useEffect(() => {
     const mostUsedDate = (field: "salaryPaidAt" | "advancePaidAt") => {
@@ -5160,35 +5163,47 @@ function FinancePage({
         <div>
           <h3 className="font-bold">Datas gerais de pagamento</h3>
           <p className="text-xs text-slate-400">
-            A data escolhida será aplicada a todos os funcionários exibidos. Depois, você poderá alterar exceções diretamente na tabela.
+            Escolha a data e clique em Aplicar a todos. Depois, você poderá alterar exceções diretamente na tabela.
           </p>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="text-sm font-semibold text-slate-600">
             Pagamento de salário
-            <input
-              type="date"
-              value={generalSalaryDate}
-              onChange={(event) => {
-                const date = event.target.value;
-                setGeneralSalaryDate(date);
-                applyDateToAll("salaryPaidAt", date);
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-400"
-            />
+            <div className="mt-2 flex gap-2">
+              <input
+                type="date"
+                value={generalSalaryDate}
+                onChange={(event) => setGeneralSalaryDate(event.target.value)}
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-400"
+              />
+              <button
+                type="button"
+                disabled={!generalSalaryDate}
+                onClick={() => applyDateToAll("salaryPaidAt", generalSalaryDate)}
+                className="rounded-xl bg-forest-700 px-4 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Aplicar a todos
+              </button>
+            </div>
           </label>
           <label className="text-sm font-semibold text-slate-600">
             Pagamento de adiantamento
-            <input
-              type="date"
-              value={generalAdvanceDate}
-              onChange={(event) => {
-                const date = event.target.value;
-                setGeneralAdvanceDate(date);
-                applyDateToAll("advancePaidAt", date);
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-400"
-            />
+            <div className="mt-2 flex gap-2">
+              <input
+                type="date"
+                value={generalAdvanceDate}
+                onChange={(event) => setGeneralAdvanceDate(event.target.value)}
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-400"
+              />
+              <button
+                type="button"
+                disabled={!generalAdvanceDate}
+                onClick={() => applyDateToAll("advancePaidAt", generalAdvanceDate)}
+                className="rounded-xl bg-forest-700 px-4 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Aplicar a todos
+              </button>
+            </div>
           </label>
         </div>
       </div>
