@@ -288,7 +288,6 @@ const transitNav = [
   ["Relatórios", FileSpreadsheet],
 ] as const;
 const financeNav = [
-  ["Visão geral", LayoutDashboard],
   ["Folha mensal", DollarSign],
   ["Relatórios", FileSpreadsheet],
 ] as const;
@@ -6786,7 +6785,7 @@ export default function App() {
       <ModuleMenu
         select={(choice) => {
           setModule(choice);
-          setPage("Visão geral");
+          setPage(choice === "finance" ? "Folha mensal" : "Visão geral");
         }}
         onLogout={logout}
         dark={dark}
