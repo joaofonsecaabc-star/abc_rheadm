@@ -5045,6 +5045,8 @@ function FinancePage({
   period: string;
   setPeriod: (period: string) => void;
 }) {
+  const [generalSalaryDate, setGeneralSalaryDate] = useState("");
+  const [generalAdvanceDate, setGeneralAdvanceDate] = useState("");
   const current = entries.filter((entry) => entry.period === period),
     byEmployee = new Map(current.map((entry) => [entry.employeeId, entry])),
     money = (value: number) =>
@@ -5080,7 +5082,46 @@ function FinancePage({
         ),
         next,
       ]);
+    },
+    applyDateToAll = (field: "salaryPaidAt" | "advancePaidAt", date: string) => {
+      const employeeIds = new Set(employees.map((employee) => employee.id)),
+        currentEntries = new Map(
+          entries
+            .filter((entry) => entry.period === period && employeeIds.has(entry.employeeId))
+            .map((entry) => [entry.employeeId, entry]),
+        ),
+        updated = employees.map((employee) => {
+          const existing = currentEntries.get(employee.id);
+          return {
+            id: existing?.id || Date.now() + employee.id,
+            employeeId: employee.id,
+            period,
+            salary: existing?.salary || 0,
+            advance: existing?.advance || 0,
+            salaryPaidAt: existing?.salaryPaidAt,
+            advancePaidAt: existing?.advancePaidAt,
+            [field]: date || undefined,
+          } as FinancialEntry;
+        });
+      setEntries([
+        ...entries.filter(
+          (entry) => !(entry.period === period && employeeIds.has(entry.employeeId)),
+        ),
+        ...updated,
+      ]);
     };
+  useEffect(() => {
+    const mostUsedDate = (field: "salaryPaidAt" | "advancePaidAt") => {
+      const counts = new Map<string, number>();
+      current.forEach((entry) => {
+        const date = entry[field];
+        if (date) counts.set(date, (counts.get(date) || 0) + 1);
+      });
+      return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+    };
+    setGeneralSalaryDate(mostUsedDate("salaryPaidAt"));
+    setGeneralAdvanceDate(mostUsedDate("advancePaidAt"));
+  }, [period]);
   return (
     <main className="fade-in p-4 sm:p-7">
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
@@ -5114,6 +5155,42 @@ function FinancePage({
             <div className="mt-1 text-xs text-slate-400">{sub}</div>
           </div>
         ))}
+      </div>
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div>
+          <h3 className="font-bold">Datas gerais de pagamento</h3>
+          <p className="text-xs text-slate-400">
+            A data escolhida será aplicada a todos os funcionários exibidos. Depois, você poderá alterar exceções diretamente na tabela.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-600">
+            Pagamento de salário
+            <input
+              type="date"
+              value={generalSalaryDate}
+              onChange={(event) => {
+                const date = event.target.value;
+                setGeneralSalaryDate(date);
+                applyDateToAll("salaryPaidAt", date);
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-400"
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-600">
+            Pagamento de adiantamento
+            <input
+              type="date"
+              value={generalAdvanceDate}
+              onChange={(event) => {
+                const date = event.target.value;
+                setGeneralAdvanceDate(date);
+                applyDateToAll("advancePaidAt", date);
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-400"
+            />
+          </label>
+        </div>
       </div>
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div className="border-b border-slate-100 px-5 py-4">
