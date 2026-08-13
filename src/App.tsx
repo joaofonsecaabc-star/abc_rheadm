@@ -290,6 +290,7 @@ const transitNav = [
 const financeNav = [
   ["Visão geral", LayoutDashboard],
   ["Folha mensal", DollarSign],
+  ["Relatórios", FileSpreadsheet],
 ] as const;
 const formatCpf = (value: string) =>
   value
@@ -5171,6 +5172,139 @@ function FinancePage({
   );
 }
 
+function FinancialReports({
+  employees,
+  entries,
+  period,
+  setPeriod,
+}: {
+  employees: Recharge[];
+  entries: FinancialEntry[];
+  period: string;
+  setPeriod: (period: string) => void;
+}) {
+  const byEmployee = new Map(
+      entries
+        .filter((entry) => entry.period === period)
+        .map((entry) => [entry.employeeId, entry]),
+    ),
+    rows = employees.map((employee) => ({
+      employee,
+      entry: byEmployee.get(employee.id),
+    })),
+    currency = (value: number) =>
+      (value || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }),
+    totalSalary = rows.reduce((sum, row) => sum + (row.entry?.salary || 0), 0),
+    totalAdvance = rows.reduce((sum, row) => sum + (row.entry?.advance || 0), 0),
+    totalPaid = rows.reduce(
+      (sum, row) =>
+        sum +
+        (row.entry?.salaryPaidAt ? row.entry.salary : 0) +
+        (row.entry?.advancePaidAt ? row.entry.advance : 0),
+      0,
+    ),
+    reportRows = rows.map(({ employee, entry }) => ({
+      Funcionário: employee.employee,
+      Loja: employee.store,
+      Função: employee.role,
+      Salário: entry?.salary || 0,
+      Adiantamento: entry?.advance || 0,
+      "Data do adiantamento": entry?.advancePaidAt || "Pendente",
+      "Data do salário": entry?.salaryPaidAt || "Pendente",
+      Total: (entry?.salary || 0) + (entry?.advance || 0),
+    }));
+  const exportExcel = () => {
+    const workbook = XLSX.utils.book_new(),
+      sheet = XLSX.utils.json_to_sheet(reportRows);
+    XLSX.utils.book_append_sheet(workbook, sheet, "Financeiro");
+    XLSX.writeFile(workbook, `financeiro-${period}.xlsx`);
+  };
+  const exportPdf = () => {
+    const pdf = new jsPDF({ orientation: "landscape" });
+    pdf.setFontSize(18);
+    pdf.text("Relatório financeiro", 14, 17);
+    pdf.setFontSize(9);
+    pdf.text(`Mês: ${period.split("-").reverse().join("/")} | Gerado em ${new Date().toLocaleString("pt-BR")}`, 14, 24);
+    pdf.text(`Previsto: ${currency(totalSalary + totalAdvance)} | Pago: ${currency(totalPaid)} | Pendente: ${currency(totalSalary + totalAdvance - totalPaid)}`, 14, 30);
+    autoTable(pdf, {
+      startY: 36,
+      head: [["Funcionário", "Loja", "Função", "Salário", "Adiantamento", "Pgto. adiantamento", "Pgto. salário", "Total"]],
+      body: rows.map(({ employee, entry }) => [
+        employee.employee,
+        employee.store,
+        employee.role,
+        currency(entry?.salary || 0),
+        currency(entry?.advance || 0),
+        entry?.advancePaidAt ? formatDate(entry.advancePaidAt) : "Pendente",
+        entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : "Pendente",
+        currency((entry?.salary || 0) + (entry?.advance || 0)),
+      ]),
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [38, 38, 38] },
+    });
+    pdf.save(`financeiro-${period}.pdf`);
+  };
+  return (
+    <main className="fade-in p-4 sm:p-7">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <SectionHead title="Relatórios Financeiros" sub="Folha, adiantamentos e saídas de caixa por mês" />
+        <label className="text-xs font-semibold text-slate-500">
+          Mês de referência
+          <input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} className="mt-1 block rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold outline-none" />
+        </label>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Salários", totalSalary],
+          ["Adiantamentos", totalAdvance],
+          ["Total pago", totalPaid],
+          ["Pendente", Math.max(0, totalSalary + totalAdvance - totalPaid)],
+        ].map(([label, value]) => (
+          <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="text-xs font-semibold uppercase text-slate-400">{label}</div>
+            <div className="mt-2 text-2xl font-bold">{currency(Number(value))}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <button onClick={exportPdf} className="rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-soft transition hover:border-slate-400">
+          <Download className="text-red-500" />
+          <h3 className="mt-4 font-bold">Gerar relatório em PDF</h3>
+          <p className="mt-1 text-sm text-slate-500">Resumo pronto para impressão e envio ao financeiro.</p>
+        </button>
+        <button onClick={exportExcel} className="rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-soft transition hover:border-slate-400">
+          <FileSpreadsheet className="text-slate-700" />
+          <h3 className="mt-4 font-bold">Gerar planilha Excel</h3>
+          <p className="mt-1 text-sm text-slate-500">Dados mensais completos para conferência e análise.</p>
+        </button>
+      </div>
+      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-400"><tr>{["Funcionário", "Loja / Função", "Salário", "Adiantamento", "Pagamento adiantamento", "Pagamento salário", "Total"].map((title) => <th key={title} className="px-5 py-3">{title}</th>)}</tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map(({ employee, entry }) => (
+                <tr key={employee.id}>
+                  <td className="px-5 py-4 font-semibold">{employee.employee}</td>
+                  <td className="px-5 py-4">{employee.store}<div className="text-xs text-slate-400">{employee.role}</div></td>
+                  <td className="px-5 py-4">{currency(entry?.salary || 0)}</td>
+                  <td className="px-5 py-4">{currency(entry?.advance || 0)}</td>
+                  <td className="px-5 py-4">{entry?.advancePaidAt ? formatDate(entry.advancePaidAt) : <span className="text-amber-600">Pendente</span>}</td>
+                  <td className="px-5 py-4">{entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : <span className="text-amber-600">Pendente</span>}</td>
+                  <td className="px-5 py-4 font-bold">{currency((entry?.salary || 0) + (entry?.advance || 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function HRPage({
   rows,
   occurrences,
@@ -6501,13 +6635,22 @@ export default function App() {
         module={module || "people"}
       />
     ) : module === "finance" ? (
-      <FinancePage
-        employees={filteredEmployees}
-        entries={financialEntries}
-        setEntries={setFinancialEntries}
-        period={period}
-        setPeriod={setPeriod}
-      />
+      page === "Relatórios" ? (
+        <FinancialReports
+          employees={filteredEmployees}
+          entries={financialEntries}
+          period={period}
+          setPeriod={setPeriod}
+        />
+      ) : (
+        <FinancePage
+          employees={filteredEmployees}
+          entries={financialEntries}
+          setEntries={setFinancialEntries}
+          period={period}
+          setPeriod={setPeriod}
+        />
+      )
     ) : module === "people" ? (
       page === "Visão geral" ? (
         <HRPage
