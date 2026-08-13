@@ -3599,6 +3599,10 @@ function ConfigurationsPage({
   setStores,
   rows,
   setRows,
+  financialEntries,
+  setFinancialEntries,
+  financialPeriod,
+  setFinancialPeriod,
   module,
 }: {
   positions: string[];
@@ -3609,9 +3613,13 @@ function ConfigurationsPage({
   setStores: (s: string[]) => void;
   rows: Recharge[];
   setRows: (rows: Recharge[]) => void;
+  financialEntries: FinancialEntry[];
+  setFinancialEntries: (entries: FinancialEntry[]) => void;
+  financialPeriod: string;
+  setFinancialPeriod: (period: string) => void;
   module: Module;
 }) {
-  const [tab, setTab] = useState<"geral" | "lojas" | "desligados" | "perfis">(
+  const [tab, setTab] = useState<"geral" | "lojas" | "desligados" | "financeiro" | "perfis">(
     "geral",
   );
   const button = (key: typeof tab, label: string, icon: ReactNode) => (
@@ -3643,6 +3651,12 @@ function ConfigurationsPage({
               "Desligados",
               <UserRound className="mr-2 inline" size={16} />,
             )}
+          {module === "finance" &&
+            button(
+              "financeiro",
+              "Ocultados do financeiro",
+              <DollarSign className="mr-2 inline" size={16} />,
+            )}
           {button(
             "perfis",
             "Perfis e usuários",
@@ -3662,6 +3676,18 @@ function ConfigurationsPage({
         <StoresPage stores={stores} setStores={setStores} />
       ) : tab === "perfis" ? (
         <UserProfiles />
+      ) : tab === "financeiro" ? (
+        <FinancialRegistrations
+          employees={rows.filter((employee) =>
+            financialEntries.some(
+              (entry) => entry.employeeId === employee.id && !!entry.noPaymentsFrom,
+            ),
+          )}
+          entries={financialEntries}
+          setEntries={setFinancialEntries}
+          period={financialPeriod}
+          setPeriod={setFinancialPeriod}
+        />
       ) : (
         <DismissedEmployeesPage
           rows={rows}
@@ -5498,7 +5524,7 @@ function FinancialRegistrations({
             <div key={employee.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><h3 className="font-bold">{employee.employee}</h3><p className="text-xs text-slate-400">{employee.store} · {employee.role}</p></div>
-                {(entry?.noPayments || excludedEmployees.has(employee.id)) && <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">Sem pagamentos</span>}
+                {(entry?.noPayments || excludedEmployees.has(employee.id)) && <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">Salvo e ocultado</span>}
               </div>
               <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {([
@@ -5510,7 +5536,7 @@ function FinancialRegistrations({
                   <div key={field} className="rounded-xl border border-slate-200 p-3"><label className="text-xs font-semibold text-slate-500">{label}<input type="number" min="0" step="0.01" value={entry?.[field] || ""} onChange={(event) => update(employee.id, { [field]: Number(event.target.value), noPayments: false })} placeholder="R$ 0,00" className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5" /></label><label className="mt-3 block text-xs font-semibold text-slate-500">Data do pagamento<input type="date" value={entry?.[dateField] || ""} onChange={(event) => update(employee.id, { [dateField]: event.target.value || undefined, noPayments: false })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5" /></label></div>
                 ))}
               </div>
-              <div className="mt-4 flex gap-2">{entry?.noPayments || excludedEmployees.has(employee.id) ? <button type="button" onClick={() => setEntries(entries.map((item) => item.employeeId === employee.id ? { ...item, noPayments: false, noPaymentsFrom: undefined } : item))} className="rounded-xl bg-forest-700 px-4 py-2.5 text-xs font-bold text-white">Voltar para o Dashboard</button> : employee.terminationDate ? <button type="button" onClick={() => update(employee.id, { noPayments: true, noPaymentsFrom: period })} className="rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-600">Sem pagamentos</button> : null}</div>
+              <div className="mt-4 flex gap-2">{entry?.noPayments || excludedEmployees.has(employee.id) ? <button type="button" onClick={() => setEntries(entries.map((item) => item.employeeId === employee.id ? { ...item, noPayments: false, noPaymentsFrom: undefined } : item))} className="rounded-xl bg-forest-700 px-4 py-2.5 text-xs font-bold text-white">Voltar para o Dashboard</button> : employee.terminationDate ? <button type="button" onClick={() => update(employee.id, { noPayments: true, noPaymentsFrom: period })} className="rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-600">Salvar e ocultar</button> : null}</div>
             </div>
           );
         })}
@@ -7023,7 +7049,18 @@ export default function App() {
     ),
     financeEmployees = financeEligibleEmployees.filter(
       (record) => !noPaymentIds.has(record.id),
-    );
+    ),
+    financeReportEmployees = financeEligibleEmployees.filter((record) => {
+      if (!noPaymentIds.has(record.id)) return true;
+      const entry = financialEntries.find(
+        (item) => item.employeeId === record.id && item.period === period,
+      );
+      return !!entry &&
+        (entry.salary > 0 ||
+          entry.advance > 0 ||
+          (entry.vacation || 0) > 0 ||
+          (entry.severance || 0) > 0);
+    });
   const content =
     page === "Configurações" ? (
       <ConfigurationsPage
@@ -7035,12 +7072,16 @@ export default function App() {
         setStores={setStores}
         rows={rows}
         setRows={setRows}
+        financialEntries={financialEntries}
+        setFinancialEntries={setFinancialEntries}
+        financialPeriod={period}
+        setFinancialPeriod={setPeriod}
         module={module || "people"}
       />
     ) : module === "finance" ? (
       page === "Relatórios" ? (
         <FinancialReports
-          employees={financeEmployees}
+          employees={financeReportEmployees}
           entries={financialEntries}
           period={period}
           setPeriod={setPeriod}
