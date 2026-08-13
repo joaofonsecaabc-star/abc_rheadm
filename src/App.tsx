@@ -6740,9 +6740,16 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(() =>
     cloudEnabled() ? false : localStorage.getItem("valefluxo_session") !== "0",
   );
-  const [module, setModule] = useState<Module | null>(null);
+  const [module, setModule] = useState<Module | null>(() => {
+    const saved = localStorage.getItem("abc_current_module");
+    return saved === "people" || saved === "transit" || saved === "finance"
+      ? saved
+      : null;
+  });
   const [side, setSide] = useState(false);
-  const [page, setPage] = useState("Visão geral");
+  const [page, setPage] = useState(
+    () => localStorage.getItem("abc_current_page") || "Visão geral",
+  );
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Recharge | null>(null);
   const [marking, setMarking] = useState<Recharge | null>(null);
@@ -6829,6 +6836,12 @@ export default function App() {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("valefluxo_theme", dark ? "dark" : "light");
   }, [dark]);
+  useEffect(() => {
+    if (module) {
+      localStorage.setItem("abc_current_module", module);
+      localStorage.setItem("abc_current_page", page);
+    }
+  }, [module, page]);
   useEffect(() => {
     let active = true;
     if (!cloudEnabled()) {
@@ -7222,6 +7235,8 @@ export default function App() {
   const logout = () => {
     void cloudLogout();
     localStorage.setItem("valefluxo_session", "0");
+    localStorage.removeItem("abc_current_module");
+    localStorage.removeItem("abc_current_page");
     setLoggedIn(false);
     setModule(null);
     setSide(false);
@@ -7261,6 +7276,8 @@ export default function App() {
         module={module}
         rechargeAlertCount={rechargeAlertCount}
         onChangeModule={() => {
+          localStorage.removeItem("abc_current_module");
+          localStorage.removeItem("abc_current_page");
           setModule(null);
           setSide(false);
           setPage("Visão geral");
