@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
+  Banknote,
+  BadgeCheck,
   Bell,
   CalendarDays,
   Check,
@@ -14,16 +16,20 @@ import {
   CreditCard,
   Download,
   DollarSign,
+  HandCoins,
+  Hourglass,
   FileSpreadsheet,
   LayoutDashboard,
   Menu,
   MoreHorizontal,
   Plus,
+  ReceiptText,
   Search,
   Settings,
   Store,
   Ticket,
   TriangleAlert,
+  Umbrella,
   UserRound,
   Users,
   X,
@@ -5206,18 +5212,18 @@ function FinancePage({
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {[
-          ["Pagamento de salário", plannedSalary, "Folha cadastrada"],
-          ["Pagamento de adiantamento", plannedAdvance, "Valores cadastrados"],
-          ["Férias", plannedVacation, "Valores cadastrados"],
-          ["Verbas rescisórias", plannedSeverance, "Valores cadastrados"],
-          ["Total já pago", paid, "Saída realizada"],
-          ["Pendente", Math.max(0, planned - paid), "Saída prevista"],
-        ].map(([title, value, sub]) => (
-          <div key={String(title)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-700">
-              <DollarSign size={20} />
+          { title: "Pagamento de salário", value: plannedSalary, sub: "Folha cadastrada", icon: Banknote, card: "border-t-blue-500", iconStyle: "bg-blue-50 text-blue-700", valueStyle: "text-blue-700" },
+          { title: "Pagamento de adiantamento", value: plannedAdvance, sub: "Valores cadastrados", icon: HandCoins, card: "border-t-violet-500", iconStyle: "bg-violet-50 text-violet-700", valueStyle: "text-violet-700" },
+          { title: "Férias", value: plannedVacation, sub: "Valores cadastrados", icon: Umbrella, card: "border-t-amber-500", iconStyle: "bg-amber-50 text-amber-700", valueStyle: "text-amber-700" },
+          { title: "Verbas rescisórias", value: plannedSeverance, sub: "Valores cadastrados", icon: ReceiptText, card: "border-t-red-500", iconStyle: "bg-red-50 text-red-700", valueStyle: "text-red-700" },
+          { title: "Total já pago", value: paid, sub: "Saída realizada", icon: BadgeCheck, card: "border-t-green-500", iconStyle: "bg-green-50 text-green-700", valueStyle: "text-green-700" },
+          { title: "Pendente", value: Math.max(0, planned - paid), sub: "Saída prevista", icon: Hourglass, card: "border-t-orange-500", iconStyle: "bg-orange-50 text-orange-700", valueStyle: "text-orange-700" },
+        ].map(({ title, value, sub, icon: Icon, card, iconStyle, valueStyle }) => (
+          <div key={title} className={`rounded-2xl border border-t-4 border-slate-200 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}>
+            <div className={`grid h-11 w-11 place-items-center rounded-xl ${iconStyle}`}>
+              <Icon size={21} />
             </div>
-            <div className="mt-4 text-2xl font-bold">{money(Number(value))}</div>
+            <div className={`mt-4 text-2xl font-bold ${valueStyle}`}>{money(Number(value))}</div>
             <div className="mt-1 text-sm font-semibold text-slate-700">{title}</div>
             <div className="mt-1 text-xs text-slate-400">{sub}</div>
           </div>
