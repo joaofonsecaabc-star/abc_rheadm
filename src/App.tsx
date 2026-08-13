@@ -5100,8 +5100,8 @@ function FinancePage({
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["Salários do mês", plannedSalary, "Folha cadastrada"],
-          ["Adiantamentos dia 20", plannedAdvance, "Valores cadastrados"],
+          ["Pagamento de salário", plannedSalary, "Folha cadastrada"],
+          ["Pagamento de adiantamento", plannedAdvance, "Valores cadastrados"],
           ["Total já pago", paid, "Saída realizada"],
           ["Pendente", Math.max(0, planned - paid), "Saída prevista"],
         ].map(([title, value, sub]) => (
@@ -5257,8 +5257,8 @@ function FinancialReports({
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["Salários", totalSalary],
-          ["Adiantamentos", totalAdvance],
+          ["Pagamento de salário", totalSalary],
+          ["Pagamento de adiantamento", totalAdvance],
           ["Total pago", totalPaid],
           ["Pendente", Math.max(0, totalSalary + totalAdvance - totalPaid)],
         ].map(([label, value]) => (
