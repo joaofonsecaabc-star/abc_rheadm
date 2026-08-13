@@ -5285,7 +5285,14 @@ function FinancePage({
                 const entry = byEmployee.get(employee.id);
                 return (
                   <tr key={employee.id}>
-                    <td className="px-5 py-4 font-semibold">{employee.employee}</td>
+                    <td className="px-5 py-4 font-semibold">
+                      {employee.employee}
+                      {employee.terminationDate && (
+                        <div className="mt-1 text-xs font-semibold text-red-600">
+                          Desligado em {formatDate(employee.terminationDate)}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-5 py-4">
                       {employee.store}<div className="text-xs text-slate-400">{employee.role}</div>
                     </td>
@@ -5432,7 +5439,14 @@ function FinancialReports({
             <tbody className="divide-y divide-slate-100">
               {rows.map(({ employee, entry }) => (
                 <tr key={employee.id}>
-                  <td className="px-5 py-4 font-semibold">{employee.employee}</td>
+                  <td className="px-5 py-4 font-semibold">
+                    {employee.employee}
+                    {employee.terminationDate && (
+                      <div className="mt-1 text-xs font-semibold text-red-600">
+                        Desligado em {formatDate(employee.terminationDate)}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-5 py-4">{employee.store}<div className="text-xs text-slate-400">{employee.role}</div></td>
                   <td className="px-5 py-4">{currency(entry?.salary || 0)}</td>
                   <td className="px-5 py-4">{entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : <span className="text-amber-600">Pendente</span>}</td>
@@ -6765,6 +6779,30 @@ export default function App() {
       (selectedStore === "Todas" || record.store === selectedStore) &&
       (selectedRole === "Todas" || record.role === selectedRole),
   );
+  const [financialYear, financialMonth] = period.split("-").map(Number),
+    financialReference = new Date(financialYear, financialMonth - 1, 1, 12),
+    financeEmployees = rows.filter((record) => {
+      const matchesFilters =
+        (selectedStore === "Todas" || record.store === selectedStore) &&
+        (selectedRole === "Todas" || record.role === selectedRole);
+      if (!matchesFilters) return false;
+      if (!isEmployeeDismissed(record, financialReference)) return true;
+      if (!record.terminationDate) return false;
+      const termination = new Date(record.terminationDate + "T12:00:00"),
+        terminationMonth = new Date(
+          termination.getFullYear(),
+          termination.getMonth(),
+          1,
+          12,
+        ),
+        visibleUntil = new Date(
+          termination.getFullYear(),
+          termination.getMonth() + 3,
+          1,
+          12,
+        );
+      return financialReference >= terminationMonth && financialReference < visibleUntil;
+    });
   const content =
     page === "Configurações" ? (
       <ConfigurationsPage
@@ -6781,14 +6819,14 @@ export default function App() {
     ) : module === "finance" ? (
       page === "Relatórios" ? (
         <FinancialReports
-          employees={filteredEmployees}
+          employees={financeEmployees}
           entries={financialEntries}
           period={period}
           setPeriod={setPeriod}
         />
       ) : (
         <FinancePage
-          employees={filteredEmployees}
+          employees={financeEmployees}
           entries={financialEntries}
           setEntries={setFinancialEntries}
           period={period}
