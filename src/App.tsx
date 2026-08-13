@@ -5083,7 +5083,7 @@ function FinancePage({
     };
   return (
     <main className="fade-in p-4 sm:p-7">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <SectionHead
           title="Gestão Financeira"
           sub="Salários, adiantamentos e controle de saída de caixa"
@@ -5248,7 +5248,7 @@ function FinancialReports({
   };
   return (
     <main className="fade-in p-4 sm:p-7">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <SectionHead title="Relatórios Financeiros" sub="Folha, adiantamentos e saídas de caixa por mês" />
         <label className="text-xs font-semibold text-slate-500">
           Mês de referência
