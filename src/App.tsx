@@ -5114,16 +5114,8 @@ function FinancePage({
       );
     };
   useEffect(() => {
-    const mostUsedDate = (field: "salaryPaidAt" | "advancePaidAt") => {
-      const counts = new Map<string, number>();
-      current.forEach((entry) => {
-        const date = entry[field];
-        if (date) counts.set(date, (counts.get(date) || 0) + 1);
-      });
-      return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
-    };
-    setGeneralSalaryDate(mostUsedDate("salaryPaidAt"));
-    setGeneralAdvanceDate(mostUsedDate("advancePaidAt"));
+    setGeneralSalaryDate("");
+    setGeneralAdvanceDate("");
   }, [period]);
   return (
     <main className="fade-in p-4 sm:p-7">
