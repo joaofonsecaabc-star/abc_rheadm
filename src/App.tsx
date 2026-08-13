@@ -5485,14 +5485,8 @@ function OccurrencesPage({
         date: form.date,
         endDate: form.type === "Aviso" ? form.endDate : undefined,
         type: form.type,
-        hours:
-          form.type === "Falta" || form.type === "Atraso"
-            ? Number(form.hours) || 0
-            : undefined,
-        minutes:
-          form.type === "Atraso" || form.type === "Falta"
-            ? Number(form.minutes) || 0
-            : undefined,
+        hours: form.type === "Atraso" ? Number(form.hours) || 0 : undefined,
+        minutes: form.type === "Atraso" ? Number(form.minutes) || 0 : undefined,
         days: form.type === "Atestado" ? Number(form.days) || 1 : undefined,
         note: form.note,
       },
@@ -5785,31 +5779,7 @@ function OccurrencesPage({
               title="Data de término do aviso"
               className="rounded-xl border border-slate-200 px-3 py-2.5"
             />
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                required
-                type="number"
-                min="0"
-                value={form.hours}
-                onChange={(e) => setForm({ ...form, hours: e.target.value })}
-                placeholder="Horas"
-                title="Horas de falta"
-                className="rounded-xl border border-slate-200 px-3 py-2.5"
-              />
-              <input
-                required
-                type="number"
-                min="0"
-                max="59"
-                value={form.minutes}
-                onChange={(e) => setForm({ ...form, minutes: e.target.value })}
-                placeholder="Minutos"
-                title="Minutos de falta"
-                className="rounded-xl border border-slate-200 px-3 py-2.5"
-              />
-            </div>
-          )}
+          ) : <div className="hidden md:block" />}
           <button className="rounded-xl bg-forest-700 px-4 py-2.5 font-semibold text-white">
             Registrar
           </button>
@@ -5845,7 +5815,7 @@ function OccurrencesPage({
                         ? `${i.days || 1} dia(s) de atestado`
                         : i.type === "Aviso"
                           ? `Até ${i.endDate ? formatDate(i.endDate) : "data não informada"}`
-                          : `${i.hours || 0}h ${i.minutes || 0}min de falta`}
+                          : "Falta registrada nesta data"}
                   </td>
                   {!reportOnly && (
                     <td className="px-4 py-3">
@@ -5905,7 +5875,9 @@ function OccurrencesPage({
                         ? `${item.days || 1} dia(s) de atestado`
                         : item.type === "Aviso"
                           ? `De ${formatDate(item.date)} até ${item.endDate ? formatDate(item.endDate) : "data não informada"}`
-                          : `${item.hours || 0}h ${item.minutes || 0}min`;
+                          : item.type === "Falta"
+                            ? "Falta registrada nesta data"
+                            : `${item.hours || 0}h ${item.minutes || 0}min`;
                     return (
                       <div key={item.id} className="rounded-xl border border-slate-200 p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
