@@ -577,6 +577,9 @@ function Header({
   stores,
   selectedStore,
   setSelectedStore,
+  roles,
+  selectedRole,
+  setSelectedRole,
   dark,
   toggleTheme,
 }: {
@@ -589,6 +592,9 @@ function Header({
   stores: string[];
   selectedStore: string;
   setSelectedStore: (v: string) => void;
+  roles: string[];
+  selectedRole: string;
+  setSelectedRole: (v: string) => void;
   dark: boolean;
   toggleTheme: () => void;
 }) {
@@ -642,11 +648,29 @@ function Header({
             value={selectedStore}
             onChange={(e) => setSelectedStore(e.target.value)}
             title={selectedStore === "Todas" ? "Todas as lojas" : selectedStore}
-            className="w-56 cursor-pointer rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs font-semibold text-slate-600 outline-none hover:border-forest-300"
+            className="w-48 cursor-pointer rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs font-semibold text-slate-600 outline-none hover:border-forest-300"
           >
             <option value="Todas">Todas as lojas</option>
             {stores.map((s) => (
               <option key={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <div className="relative hidden md:block">
+          <UserRound
+            className="pointer-events-none absolute left-3 top-2.5 text-forest-700"
+            size={17}
+          />
+          <select
+            aria-label="Filtrar por função"
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            title={selectedRole === "Todas" ? "Todas as funções" : selectedRole}
+            className="w-48 cursor-pointer rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs font-semibold text-slate-600 outline-none hover:border-forest-300"
+          >
+            <option value="Todas">Todas as funções</option>
+            {roles.map((role) => (
+              <option key={role}>{role}</option>
             ))}
           </select>
         </div>
@@ -5530,6 +5554,7 @@ function OccurrencesPage({
       .filter(
         (i) =>
           i.date.startsWith(month) &&
+          map.has(i.employeeId) &&
           (store === "Todas" || map.get(i.employeeId)?.store === store),
       )
       .sort((a, b) => b.date.localeCompare(a.date)),
@@ -6011,6 +6036,7 @@ export default function App() {
   );
   const [referenceDay, setReferenceDay] = useState(now.getDate());
   const [selectedStore, setSelectedStore] = useState("Todas");
+  const [selectedRole, setSelectedRole] = useState("Todas");
   const initialDb = useMemo(() => loadDatabase(), []);
   const [rows, setRows] = useState<Recharge[]>(initialDb.employees);
   const [events, setEvents] = useState<RechargeEvent[]>(initialDb.events);
@@ -6225,12 +6251,21 @@ export default function App() {
     maxReferenceDay = new Date(refYear, refMonth, 0).getDate(),
     safeReferenceDay = Math.min(referenceDay, maxReferenceDay),
     referenceDate = `${period}-${String(safeReferenceDay).padStart(2, "0")}`;
+  const availableRoles = useMemo(
+    () =>
+      [...new Set(rows.map((record) => record.role).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      ),
+    [rows],
+  );
   const viewRows = useMemo(
     () =>
       monthlyRows(rows, events, period, referenceDate).filter(
-        (r) => selectedStore === "Todas" || r.store === selectedStore,
+        (r) =>
+          (selectedStore === "Todas" || r.store === selectedStore) &&
+          (selectedRole === "Todas" || r.role === selectedRole),
       ),
-    [rows, events, period, referenceDate, selectedStore],
+    [rows, events, period, referenceDate, selectedStore, selectedRole],
   );
   const rechargeAlertCount = viewRows.filter(
     (r) => r.status === "Atrasado" || r.status === "Pendente",
@@ -6248,10 +6283,11 @@ export default function App() {
     setEvents(events.filter((event) => event.employeeId !== id));
   };
   const operationalRows = rows.filter((r) => !isEmployeeDismissed(r));
-  const filteredEmployees =
-    selectedStore === "Todas"
-      ? operationalRows
-      : operationalRows.filter((r) => r.store === selectedStore);
+  const filteredEmployees = operationalRows.filter(
+    (record) =>
+      (selectedStore === "Todas" || record.store === selectedStore) &&
+      (selectedRole === "Todas" || record.role === selectedRole),
+  );
   const content =
     page === "Configurações" ? (
       <ConfigurationsPage
@@ -6268,17 +6304,17 @@ export default function App() {
     ) : module === "people" ? (
       page === "Visão geral" ? (
         <HRPage
-          rows={
-            selectedStore === "Todas"
-              ? rows
-              : rows.filter((record) => record.store === selectedStore)
-          }
+          rows={rows.filter(
+            (record) =>
+              (selectedStore === "Todas" || record.store === selectedStore) &&
+              (selectedRole === "Todas" || record.role === selectedRole),
+          )}
           occurrences={occurrences}
           onEdit={openEdit}
         />
       ) : page === "Funcionários" ? (
         <HREmployeesPage
-          rows={rows}
+          rows={filteredEmployees}
           openForm={openNew}
           edit={openEdit}
           toggleCritical={(record) =>
@@ -6313,12 +6349,12 @@ export default function App() {
         />
       ) : page === "Ocorrências" ? (
         <OccurrencesPage
-          employees={rows}
+          employees={filteredEmployees}
           items={occurrences}
           setItems={setOccurrences}
         />
       ) : (
-        <HRReports employees={rows} occurrences={occurrences} />
+        <HRReports employees={filteredEmployees} occurrences={occurrences} />
       )
     ) : page === "Funcionários" ? (
       <EmployeesPage
@@ -6340,7 +6376,7 @@ export default function App() {
       />
     ) : page === "Recargas" ? (
       <RechargeHistoryPage
-        employees={rows}
+        employees={filteredEmployees}
         events={events}
         planned={viewRows}
         onMark={(r) => {
@@ -6373,9 +6409,7 @@ export default function App() {
     ) : page === "Calendário" ? (
       <CalendarPage rows={viewRows} period={period} setPeriod={setPeriod} />
     ) : (
-      <ReportsPageFiltered
-        rows={monthlyRows(rows, events, period, referenceDate)}
-      />
+      <ReportsPageFiltered rows={viewRows} />
     );
   const logout = () => {
     void cloudLogout();
@@ -6441,6 +6475,9 @@ export default function App() {
           stores={stores}
           selectedStore={selectedStore}
           setSelectedStore={setSelectedStore}
+          roles={availableRoles}
+          selectedRole={selectedRole}
+          setSelectedRole={setSelectedRole}
           dark={dark}
           toggleTheme={() => setDark(!dark)}
         />
