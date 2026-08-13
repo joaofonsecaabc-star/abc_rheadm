@@ -5130,9 +5130,9 @@ function FinancePage({
                 <th className="px-5 py-3">Funcionário</th>
                 <th className="px-5 py-3">Loja / Função</th>
                 <th className="px-5 py-3">Salário do mês</th>
+                <th className="px-5 py-3">Pagamento do salário</th>
                 <th className="px-5 py-3">Adiantamento dia 20</th>
                 <th className="px-5 py-3">Pagamento do adiantamento</th>
-                <th className="px-5 py-3">Pagamento do salário</th>
                 <th className="px-5 py-3">Total</th>
               </tr>
             </thead>
@@ -5149,13 +5149,13 @@ function FinancePage({
                       <input type="number" min="0" step="0.01" value={entry?.salary || ""} onChange={(event) => update(employee.id, { salary: Number(event.target.value) })} placeholder="R$ 0,00" className="w-36 rounded-lg border border-slate-200 px-3 py-2" />
                     </td>
                     <td className="px-5 py-4">
+                      <input type="date" value={entry?.salaryPaidAt || ""} onChange={(event) => update(employee.id, { salaryPaidAt: event.target.value || undefined })} className="rounded-lg border border-slate-200 px-3 py-2" />
+                    </td>
+                    <td className="px-5 py-4">
                       <input type="number" min="0" step="0.01" value={entry?.advance || ""} onChange={(event) => update(employee.id, { advance: Number(event.target.value) })} placeholder="R$ 0,00" className="w-36 rounded-lg border border-slate-200 px-3 py-2" />
                     </td>
                     <td className="px-5 py-4">
                       <input type="date" value={entry?.advancePaidAt || ""} onChange={(event) => update(employee.id, { advancePaidAt: event.target.value || undefined })} className="rounded-lg border border-slate-200 px-3 py-2" />
-                    </td>
-                    <td className="px-5 py-4">
-                      <input type="date" value={entry?.salaryPaidAt || ""} onChange={(event) => update(employee.id, { salaryPaidAt: event.target.value || undefined })} className="rounded-lg border border-slate-200 px-3 py-2" />
                     </td>
                     <td className="px-5 py-4 font-bold">{money((entry?.salary || 0) + (entry?.advance || 0))}</td>
                   </tr>
@@ -5211,9 +5211,9 @@ function FinancialReports({
       Loja: employee.store,
       Função: employee.role,
       Salário: entry?.salary || 0,
+      "Data do salário": entry?.salaryPaidAt || "Pendente",
       Adiantamento: entry?.advance || 0,
       "Data do adiantamento": entry?.advancePaidAt || "Pendente",
-      "Data do salário": entry?.salaryPaidAt || "Pendente",
       Total: (entry?.salary || 0) + (entry?.advance || 0),
     }));
   const exportExcel = () => {
@@ -5231,15 +5231,15 @@ function FinancialReports({
     pdf.text(`Previsto: ${currency(totalSalary + totalAdvance)} | Pago: ${currency(totalPaid)} | Pendente: ${currency(totalSalary + totalAdvance - totalPaid)}`, 14, 30);
     autoTable(pdf, {
       startY: 36,
-      head: [["Funcionário", "Loja", "Função", "Salário", "Adiantamento", "Pgto. adiantamento", "Pgto. salário", "Total"]],
+      head: [["Funcionário", "Loja", "Função", "Salário", "Pgto. salário", "Adiantamento", "Pgto. adiantamento", "Total"]],
       body: rows.map(({ employee, entry }) => [
         employee.employee,
         employee.store,
         employee.role,
         currency(entry?.salary || 0),
+        entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : "Pendente",
         currency(entry?.advance || 0),
         entry?.advancePaidAt ? formatDate(entry.advancePaidAt) : "Pendente",
-        entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : "Pendente",
         currency((entry?.salary || 0) + (entry?.advance || 0)),
       ]),
       styles: { fontSize: 7 },
@@ -5284,16 +5284,16 @@ function FinancialReports({
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-400"><tr>{["Funcionário", "Loja / Função", "Salário", "Adiantamento", "Pagamento adiantamento", "Pagamento salário", "Total"].map((title) => <th key={title} className="px-5 py-3">{title}</th>)}</tr></thead>
+            <thead className="bg-slate-50 text-xs uppercase text-slate-400"><tr>{["Funcionário", "Loja / Função", "Salário", "Pagamento salário", "Adiantamento", "Pagamento adiantamento", "Total"].map((title) => <th key={title} className="px-5 py-3">{title}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map(({ employee, entry }) => (
                 <tr key={employee.id}>
                   <td className="px-5 py-4 font-semibold">{employee.employee}</td>
                   <td className="px-5 py-4">{employee.store}<div className="text-xs text-slate-400">{employee.role}</div></td>
                   <td className="px-5 py-4">{currency(entry?.salary || 0)}</td>
+                  <td className="px-5 py-4">{entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : <span className="text-amber-600">Pendente</span>}</td>
                   <td className="px-5 py-4">{currency(entry?.advance || 0)}</td>
                   <td className="px-5 py-4">{entry?.advancePaidAt ? formatDate(entry.advancePaidAt) : <span className="text-amber-600">Pendente</span>}</td>
-                  <td className="px-5 py-4">{entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : <span className="text-amber-600">Pendente</span>}</td>
                   <td className="px-5 py-4 font-bold">{currency((entry?.salary || 0) + (entry?.advance || 0))}</td>
                 </tr>
               ))}
