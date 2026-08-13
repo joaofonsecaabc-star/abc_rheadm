@@ -18,6 +18,29 @@ html.dark input, html.dark select, html.dark textarea { background-color: #20242
 html.dark table tbody tr:hover { background-color: #20242a !important; }
 html.dark #root > .min-h-screen { background: #0f1115 !important; }
 
+.initial-loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: #f3f4f6;
+}
+.initial-loading-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #d1d5db;
+  border-top-color: #262626;
+  border-radius: 9999px;
+  animation: initial-loading-spin .7s linear infinite;
+}
+html.dark .initial-loading-screen { background: #0f1115; }
+html.dark .initial-loading-spinner {
+  border-color: #343a43;
+  border-top-color: #f3f4f6;
+}
+@keyframes initial-loading-spin { to { transform: rotate(360deg); } }
+
 /* O seletor do tema do sistema não pode substituir a escolha feita no site. */
 html:not(.dark) .module-menu { background: #f1f5f9 !important; color: #111827 !important; }
 html:not(.dark) .module-menu .module-card,

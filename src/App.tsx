@@ -4686,17 +4686,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
 function InitialLoadingScreen() {
   return (
-    <div className="grid min-h-screen place-items-center bg-white dark:bg-[#101010]">
-      <div className="flex flex-col items-center" role="status" aria-label="Carregando">
-        <img
-          src="/sacolao-abc-logo.png?v=4"
-          alt="Sacolão ABC"
-          className="h-16 w-40 object-contain"
-        />
-        <div className="mt-5 h-1 w-20 overflow-hidden rounded-full bg-slate-200 dark:bg-white/15">
-          <div className="h-full w-1/2 animate-pulse rounded-full bg-[#262626] dark:bg-white" />
-        </div>
-      </div>
+    <div className="initial-loading-screen" role="status" aria-label="Carregando">
+      <span className="initial-loading-spinner" />
     </div>
   );
 }
