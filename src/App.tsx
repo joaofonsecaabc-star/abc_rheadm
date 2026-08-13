@@ -5134,6 +5134,30 @@ function FinancePage({
             .reduce((sum, entry) => sum + entry.advance, 0),
         };
       }),
+    roleBreakdown = [...new Set(employees.map((employee) => employee.role || "Sem função"))]
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map((role) => {
+        const roleEmployees = employees.filter(
+            (employee) => (employee.role || "Sem função") === role,
+          ),
+          ids = new Set(roleEmployees.map((employee) => employee.id)),
+          roleEntries = current.filter((entry) => ids.has(entry.employeeId));
+        return {
+          role,
+          employees: roleEmployees.length,
+          salary: roleEntries.reduce((sum, entry) => sum + entry.salary, 0),
+          advance: roleEntries.reduce((sum, entry) => sum + entry.advance, 0),
+          total: roleEntries.reduce(
+            (sum, entry) =>
+              sum +
+              entry.salary +
+              entry.advance +
+              (entry.vacation || 0) +
+              (entry.severance || 0),
+            0,
+          ),
+        };
+      }),
     update = (employeeId: number, patch: Partial<FinancialEntry>) => {
       const existing = byEmployee.get(employeeId),
         next: FinancialEntry = {
@@ -5301,6 +5325,55 @@ function FinancePage({
           </div>
         ))}
       </div>
+      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-white">
+            <Users size={19} />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900">Visão financeira por função</h3>
+            <p className="text-xs font-medium text-slate-500">
+              Valores separados por Repositor, Operador, Vigia e demais funções
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {roleBreakdown.map((item) => (
+            <div
+              key={item.role}
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="font-bold text-slate-900">{item.role}</h4>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                    {item.employees} funcionário(s)
+                  </p>
+                </div>
+                <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-slate-600 shadow-sm">
+                  {item.employees}
+                </span>
+              </div>
+              <div className="mt-4 space-y-2 border-t border-slate-200 pt-3 text-sm">
+                <div className="flex justify-between gap-3 text-slate-600">
+                  <span>Salários</span><b className="text-slate-900">{money(item.salary)}</b>
+                </div>
+                <div className="flex justify-between gap-3 text-slate-600">
+                  <span>Adiantamentos</span><b className="text-slate-900">{money(item.advance)}</b>
+                </div>
+                <div className="flex justify-between gap-3 rounded-lg bg-slate-900 px-3 py-2 text-white">
+                  <span className="font-semibold">Total da função</span><b>{money(item.total)}</b>
+                </div>
+              </div>
+            </div>
+          ))}
+          {!roleBreakdown.length && (
+            <p className="py-5 text-sm text-slate-400">
+              Nenhuma função encontrada para os filtros selecionados.
+            </p>
+          )}
+        </div>
+      </section>
       {false && <>
       <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
         <div>
