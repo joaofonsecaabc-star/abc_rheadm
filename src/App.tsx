@@ -5091,6 +5091,8 @@ function FinancePage({
       (entry) => entry.period === period && visibleEmployeeIds.has(entry.employeeId),
     ),
     byEmployee = new Map(current.map((entry) => [entry.employeeId, entry])),
+    todayIso = new Date().toISOString().slice(0, 10),
+    paymentReached = (date?: string) => !!date && date <= todayIso,
     money = (value: number) =>
       (value || 0).toLocaleString("pt-BR", {
         style: "currency",
@@ -5103,10 +5105,10 @@ function FinancePage({
     paid = current.reduce(
       (sum, entry) =>
         sum +
-        (entry.salaryPaidAt ? entry.salary : 0) +
-        (entry.advancePaidAt ? entry.advance : 0) +
-        (entry.vacationPaidAt ? entry.vacation || 0 : 0) +
-        (entry.severancePaidAt ? entry.severance || 0 : 0),
+        (paymentReached(entry.salaryPaidAt) ? entry.salary : 0) +
+        (paymentReached(entry.advancePaidAt) ? entry.advance : 0) +
+        (paymentReached(entry.vacationPaidAt) ? entry.vacation || 0 : 0) +
+        (paymentReached(entry.severancePaidAt) ? entry.severance || 0 : 0),
       0,
     ),
     planned = plannedSalary + plannedAdvance + plannedVacation + plannedSeverance,
@@ -5581,6 +5583,8 @@ function FinancialReports({
         style: "currency",
         currency: "BRL",
       }),
+    todayIso = new Date().toISOString().slice(0, 10),
+    paymentReached = (date?: string) => !!date && date <= todayIso,
     totalSalary = rows.reduce((sum, row) => sum + (row.entry?.salary || 0), 0),
     totalAdvance = rows.reduce((sum, row) => sum + (row.entry?.advance || 0), 0),
     totalVacation = rows.reduce((sum, row) => sum + (row.entry?.vacation || 0), 0),
@@ -5588,10 +5592,10 @@ function FinancialReports({
     totalPaid = rows.reduce(
       (sum, row) =>
         sum +
-        (row.entry?.salaryPaidAt ? row.entry.salary : 0) +
-        (row.entry?.advancePaidAt ? row.entry.advance : 0) +
-        (row.entry?.vacationPaidAt ? row.entry.vacation || 0 : 0) +
-        (row.entry?.severancePaidAt ? row.entry.severance || 0 : 0),
+        (paymentReached(row.entry?.salaryPaidAt) ? row.entry?.salary || 0 : 0) +
+        (paymentReached(row.entry?.advancePaidAt) ? row.entry?.advance || 0 : 0) +
+        (paymentReached(row.entry?.vacationPaidAt) ? row.entry?.vacation || 0 : 0) +
+        (paymentReached(row.entry?.severancePaidAt) ? row.entry?.severance || 0 : 0),
       0,
     ),
     reportRows = rows.map(({ employee, entry }) => ({
