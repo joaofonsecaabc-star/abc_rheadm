@@ -5771,15 +5771,38 @@ function FinancialReports({
   period: string;
   setPeriod: (period: string) => void;
 }) {
+  type ReportKind = "salary" | "advance" | "vacation" | "severance";
+  const reportKinds: { key: ReportKind; label: string }[] = [
+      { key: "salary", label: "Pagamento de salário" },
+      { key: "advance", label: "Pagamento de adiantamento" },
+      { key: "vacation", label: "Férias" },
+      { key: "severance", label: "Verbas rescisórias" },
+    ],
+    allStores = [...new Set(employees.map((employee) => employee.store))].sort(),
+    [selectedStores, setSelectedStores] = useState<string[]>(allStores),
+    [selectedKinds, setSelectedKinds] = useState<ReportKind[]>([
+      "salary",
+      "advance",
+      "vacation",
+      "severance",
+    ]);
+  useEffect(() => {
+    setSelectedStores((current) => {
+      const valid = current.filter((store) => allStores.includes(store));
+      return valid.length ? valid : allStores;
+    });
+  }, [employees.map((employee) => employee.store).join("|")]);
   const byEmployee = new Map(
       entries
         .filter((entry) => entry.period === period)
         .map((entry) => [entry.employeeId, entry]),
     ),
-    rows = employees.map((employee) => ({
-      employee,
-      entry: byEmployee.get(employee.id),
-    })),
+    rows = employees
+      .filter((employee) => selectedStores.includes(employee.store))
+      .map((employee) => ({
+        employee,
+        entry: byEmployee.get(employee.id),
+      })),
     currency = (value: number) =>
       (value || 0).toLocaleString("pt-BR", {
         style: "currency",
@@ -5800,23 +5823,35 @@ function FinancialReports({
         (paymentReached(row.entry?.severancePaidAt) ? row.entry?.severance || 0 : 0),
       0,
     ),
-    reportRows = rows.map(({ employee, entry }) => ({
-      Funcionário: employee.employee,
-      Loja: employee.store,
-      Função: employee.role,
-      Salário: entry?.salary || 0,
-      "Data do salário": entry?.salaryPaidAt || "Pendente",
-      Adiantamento: entry?.advance || 0,
-      "Data do adiantamento": entry?.advancePaidAt || "Pendente",
-      Férias: entry?.vacation || 0,
-      "Data das férias": entry?.vacationPaidAt || "Pendente",
-      "Verbas rescisórias": entry?.severance || 0,
-      "Data da rescisão": entry?.severancePaidAt || "Pendente",
-      Total: (entry?.salary || 0) + (entry?.advance || 0) + (entry?.vacation || 0) + (entry?.severance || 0),
-    }));
+    selectedValue = (entry?: FinancialEntry) =>
+      selectedKinds.reduce((sum, kind) => sum + (entry?.[kind] || 0), 0),
+    groupedRows = allStores
+      .filter((store) => selectedStores.includes(store))
+      .map((store) => ({
+        store,
+        rows: rows.filter(
+          ({ employee, entry }) =>
+            employee.store === store && selectedValue(entry) > 0,
+        ),
+      })),
+    filteredTotal = rows.reduce(
+      (sum, { entry }) => sum + selectedValue(entry),
+      0,
+    );
   const exportExcel = () => {
-    const workbook = XLSX.utils.book_new(),
-      sheet = XLSX.utils.json_to_sheet(reportRows);
+    const workbook = XLSX.utils.book_new(), data: (string | number)[][] = [];
+    groupedRows.forEach((group) => {
+      data.push([group.store.toUpperCase(), "", ""]);
+      data.push(["NOME", "FUNÇÃO", "VALOR"]);
+      group.rows.forEach(({ employee, entry }) =>
+        data.push([employee.employee.toUpperCase(), employee.role.toUpperCase(), selectedValue(entry)]),
+      );
+      data.push(["", "TOTAL", group.rows.reduce((sum, { entry }) => sum + selectedValue(entry), 0)]);
+      data.push([]);
+    });
+    data.push(["", "TOTAL GERAL", filteredTotal]);
+    const sheet = XLSX.utils.aoa_to_sheet(data);
+    sheet["!cols"] = [{ wch: 42 }, { wch: 32 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(workbook, sheet, "Financeiro");
     XLSX.writeFile(workbook, `financeiro-${period}.xlsx`);
   };
@@ -5826,23 +5861,33 @@ function FinancialReports({
     pdf.text("Relatório financeiro", 14, 17);
     pdf.setFontSize(9);
     pdf.text(`Mês: ${period.split("-").reverse().join("/")} | Gerado em ${new Date().toLocaleString("pt-BR")}`, 14, 24);
-    pdf.text(`Previsto: ${currency(totalSalary + totalAdvance + totalVacation + totalSeverance)} | Pago: ${currency(totalPaid)} | Pendente: ${currency(totalSalary + totalAdvance + totalVacation + totalSeverance - totalPaid)}`, 14, 30);
-    autoTable(pdf, {
-      startY: 36,
-      head: [["Funcionário", "Loja", "Função", "Salário", "Pgto. salário", "Adiantamento", "Pgto. adiantamento", "Total"]],
-      body: rows.map(({ employee, entry }) => [
-        employee.employee,
-        employee.store,
-        employee.role,
-        currency(entry?.salary || 0),
-        entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : "Pendente",
-        currency(entry?.advance || 0),
-        entry?.advancePaidAt ? formatDate(entry.advancePaidAt) : "Pendente",
-        currency((entry?.salary || 0) + (entry?.advance || 0)),
-      ]),
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [38, 38, 38] },
+    pdf.text(`Tipos: ${reportKinds.filter((kind) => selectedKinds.includes(kind.key)).map((kind) => kind.label).join(", ")}`, 14, 30);
+    let startY = 36;
+    groupedRows.forEach((group) => {
+      autoTable(pdf, {
+        startY,
+        head: [[group.store.toUpperCase(), "FUNÇÃO", "VALOR"]],
+        body: [
+          ...group.rows.map(({ employee, entry }) => [
+            employee.employee.toUpperCase(),
+            employee.role.toUpperCase(),
+            currency(selectedValue(entry)),
+          ]),
+          ["", "TOTAL", currency(group.rows.reduce((sum, { entry }) => sum + selectedValue(entry), 0))],
+        ],
+        styles: { fontSize: 8, lineColor: [80, 80, 80], lineWidth: 0.15 },
+        headStyles: { fillColor: [38, 38, 38], halign: "center", fontStyle: "bold" },
+        columnStyles: { 2: { halign: "right" } },
+        margin: { left: 14, right: 14 },
+      });
+      startY = ((pdf as any).lastAutoTable?.finalY || startY) + 6;
+      if (startY > 180) {
+        pdf.addPage();
+        startY = 18;
+      }
     });
+    pdf.setFontSize(11);
+    pdf.text(`TOTAL GERAL: ${currency(filteredTotal)}`, 283, Math.min(startY + 2, 195), { align: "right" });
     pdf.save(`financeiro-${period}.pdf`);
   };
   return (
@@ -5853,6 +5898,26 @@ function FinancialReports({
           Mês de referência
           <input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} className="mt-1 block rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold outline-none" />
         </label>
+      </div>
+      <div className="mb-5 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft sm:grid-cols-2">
+        <details className="relative">
+          <summary className="cursor-pointer list-none rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">
+            Lojas: {selectedStores.length === allStores.length ? "Todas" : `${selectedStores.length} selecionada(s)`}
+          </summary>
+          <div className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+            <label className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-2 py-2 font-bold"><input type="checkbox" checked={selectedStores.length === allStores.length} onChange={(event) => setSelectedStores(event.target.checked ? allStores : [])} /> Todas as lojas</label>
+            {allStores.map((store) => <label key={store} className="flex cursor-pointer items-center gap-3 px-2 py-2 text-sm"><input type="checkbox" checked={selectedStores.includes(store)} onChange={() => setSelectedStores((current) => current.includes(store) ? current.filter((item) => item !== store) : [...current, store])} /> {store}</label>)}
+          </div>
+        </details>
+        <details className="relative">
+          <summary className="cursor-pointer list-none rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">
+            Tipos: {selectedKinds.length === reportKinds.length ? "Todos" : `${selectedKinds.length} selecionado(s)`}
+          </summary>
+          <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+            <label className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-2 py-2 font-bold"><input type="checkbox" checked={selectedKinds.length === reportKinds.length} onChange={(event) => setSelectedKinds(event.target.checked ? reportKinds.map((kind) => kind.key) : [])} /> Todos os tipos</label>
+            {reportKinds.map((kind) => <label key={kind.key} className="flex cursor-pointer items-center gap-3 px-2 py-2 text-sm"><input type="checkbox" checked={selectedKinds.includes(kind.key)} onChange={() => setSelectedKinds((current) => current.includes(kind.key) ? current.filter((item) => item !== kind.key) : [...current, kind.key])} /> {kind.label}</label>)}
+          </div>
+        </details>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -5879,32 +5944,25 @@ function FinancialReports({
           <p className="mt-1 text-sm text-slate-500">Dados mensais completos para conferência e análise.</p>
         </button>
       </div>
-      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-400"><tr>{["Funcionário", "Loja / Função", "Salário", "Pagamento salário", "Adiantamento", "Pagamento adiantamento", "Total"].map((title) => <th key={title} className="px-5 py-3">{title}</th>)}</tr></thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map(({ employee, entry }) => (
-                <tr key={employee.id}>
-                  <td className="px-5 py-4 font-semibold">
-                    {employee.employee}
-                    {employee.terminationDate && (
-                      <div className="mt-1 text-xs font-semibold text-red-600">
-                        Desligado em {formatDate(employee.terminationDate)}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">{employee.store}<div className="text-xs text-slate-400">{employee.role}</div></td>
-                  <td className="px-5 py-4">{currency(entry?.salary || 0)}</td>
-                  <td className="px-5 py-4">{entry?.salaryPaidAt ? formatDate(entry.salaryPaidAt) : <span className="text-amber-600">Pendente</span>}</td>
-                  <td className="px-5 py-4">{currency(entry?.advance || 0)}</td>
-                  <td className="px-5 py-4">{entry?.advancePaidAt ? formatDate(entry.advancePaidAt) : <span className="text-amber-600">Pendente</span>}</td>
-                  <td className="px-5 py-4 font-bold">{currency((entry?.salary || 0) + (entry?.advance || 0))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="mt-5 space-y-5">
+        {groupedRows.map((group) => (
+          <div key={group.store} className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-soft">
+            <div className="bg-slate-800 px-5 py-3 text-center text-lg font-black uppercase text-white">{group.store}</div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] text-sm">
+                <thead className="border-b border-slate-300 bg-slate-100 text-slate-900"><tr><th className="px-5 py-2 text-left">NOME</th><th className="px-5 py-2 text-left">FUNÇÃO</th><th className="px-5 py-2 text-right">VALOR</th></tr></thead>
+                <tbody className="divide-y divide-slate-200">
+                  {group.rows.map(({ employee, entry }) => (
+                    <tr key={employee.id}><td className="px-5 py-2 font-semibold uppercase">{employee.employee}</td><td className="px-5 py-2 uppercase">{employee.role}</td><td className="px-5 py-2 text-right font-semibold">{currency(selectedValue(entry))}</td></tr>
+                  ))}
+                  {!group.rows.length && <tr><td colSpan={3} className="px-5 py-7 text-center text-slate-400">Nenhum valor cadastrado para os filtros escolhidos.</td></tr>}
+                </tbody>
+                <tfoot className="border-t-2 border-slate-400 bg-slate-200 font-black"><tr><td></td><td className="px-5 py-3 text-right">TOTAL</td><td className="px-5 py-3 text-right">{currency(group.rows.reduce((sum, { entry }) => sum + selectedValue(entry), 0))}</td></tr></tfoot>
+              </table>
+            </div>
+          </div>
+        ))}
+        <div className="flex justify-end rounded-2xl bg-slate-900 px-6 py-4 text-lg font-black text-white"><span className="mr-8">TOTAL GERAL</span>{currency(filteredTotal)}</div>
       </div>
     </main>
   );
