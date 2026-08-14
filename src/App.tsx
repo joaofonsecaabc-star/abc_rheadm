@@ -5862,22 +5862,114 @@ function FinancialReports({
       (sum, { entry }) => sum + selectedValue(entry),
       0,
     );
-  const exportExcel = () => {
-    const workbook = XLSX.utils.book_new(), data: (string | number)[][] = [];
-    groupedRows.forEach((group) => {
-      data.push([group.store.toUpperCase(), "", ""]);
-      data.push(["NOME", "FUNÇÃO", "VALOR"]);
-      group.rows.forEach(({ employee, entry }) =>
-        data.push([employee.employee.toUpperCase(), employee.role.toUpperCase(), selectedValue(entry)]),
+  const exportExcel = async () => {
+    const workbook = new ExcelJS.Workbook(),
+      sheet = workbook.addWorksheet("Financeiro", {
+        views: [{ showGridLines: false }],
+        pageSetup: {
+          orientation: "landscape",
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+          margins: {
+            left: 0.25,
+            right: 0.25,
+            top: 0.4,
+            bottom: 0.4,
+            header: 0.15,
+            footer: 0.15,
+          },
+        },
+      }),
+      palette = ["FFE31B23", "FF92D050", "FF0E83C7", "FFF59E0B", "FF7C3AED"],
+      border = {
+        top: { style: "thin" as const, color: { argb: "FF555555" } },
+        left: { style: "thin" as const, color: { argb: "FF555555" } },
+        bottom: { style: "thin" as const, color: { argb: "FF555555" } },
+        right: { style: "thin" as const, color: { argb: "FF555555" } },
+      },
+      competence = capitalizeMonth(
+        new Date(`${period}-01T12:00:00`).toLocaleDateString("pt-BR", {
+          month: "long",
+          year: "numeric",
+        }),
       );
-      data.push(["", "TOTAL", group.rows.reduce((sum, { entry }) => sum + selectedValue(entry), 0)]);
-      data.push([]);
+    workbook.creator = "Sacolão ABC";
+    sheet.columns = [{ width: 48 }, { width: 36 }, { width: 20 }];
+    sheet.mergeCells("A1:C1");
+    const mainTitle = sheet.getCell("A1");
+    mainTitle.value = `RELATÓRIO FINANCEIRO — COMPETÊNCIA ${competence.toUpperCase()}`;
+    mainTitle.font = { name: "Arial", size: 15, bold: true, color: { argb: "FFFFFFFF" } };
+    mainTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF111111" } };
+    mainTitle.alignment = { horizontal: "center", vertical: "middle" };
+    sheet.getRow(1).height = 28;
+    sheet.addRow([]);
+    groupedRows.forEach((group, groupIndex) => {
+      const color = palette[groupIndex % palette.length],
+        titleRowNumber = sheet.rowCount + 1;
+      sheet.addRow([group.store.toUpperCase()]);
+      sheet.mergeCells(titleRowNumber, 1, titleRowNumber, 3);
+      const storeTitle = sheet.getCell(titleRowNumber, 1);
+      storeTitle.font = { name: "Arial", size: 13, bold: true, color: { argb: "FFFFFFFF" } };
+      storeTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
+      storeTitle.alignment = { horizontal: "center", vertical: "middle" };
+      storeTitle.border = border;
+      sheet.getRow(titleRowNumber).height = 24;
+      const header = sheet.addRow(["NOME", "FUNÇÃO", "VALOR"]);
+      header.height = 22;
+      header.eachCell((cell, column) => {
+        cell.font = { name: "Arial", bold: true, color: { argb: "FF111827" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } };
+        cell.border = border;
+        cell.alignment = { horizontal: column === 3 ? "right" : "center", vertical: "middle" };
+      });
+      group.rows.forEach(({ employee, entry }) => {
+        const row = sheet.addRow([
+          employee.employee.toUpperCase(),
+          employee.role.toUpperCase(),
+          selectedValue(entry),
+        ]);
+        row.height = 21;
+        row.eachCell((cell, column) => {
+          cell.font = { name: "Arial", size: 10, bold: column === 1 || column === 3 };
+          cell.border = border;
+          cell.alignment = { horizontal: column === 3 ? "right" : "left", vertical: "middle" };
+        });
+        row.getCell(3).numFmt = '"R$" #,##0.00';
+      });
+      const subtotal = group.rows.reduce((sum, { entry }) => sum + selectedValue(entry), 0),
+        totalRow = sheet.addRow(["", "TOTAL", subtotal]);
+      totalRow.height = 22;
+      totalRow.eachCell((cell, column) => {
+        cell.font = { name: "Arial", bold: true, color: { argb: "FF111827" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1D5DB" } };
+        cell.border = border;
+        cell.alignment = { horizontal: column === 3 ? "right" : "center", vertical: "middle" };
+      });
+      totalRow.getCell(3).numFmt = '"R$" #,##0.00';
+      sheet.addRow([]);
     });
-    data.push(["", "TOTAL GERAL", filteredTotal]);
-    const sheet = XLSX.utils.aoa_to_sheet(data);
-    sheet["!cols"] = [{ wch: 42 }, { wch: 32 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(workbook, sheet, "Financeiro");
-    XLSX.writeFile(workbook, `financeiro-${period}.xlsx`);
+    const grandTotal = sheet.addRow(["", "TOTAL GERAL", filteredTotal]);
+    grandTotal.height = 25;
+    grandTotal.eachCell((cell, column) => {
+      cell.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+      cell.border = border;
+      cell.alignment = { horizontal: column === 3 ? "right" : "center", vertical: "middle" };
+    });
+    grandTotal.getCell(3).numFmt = '"R$" #,##0.00';
+    sheet.pageSetup.printArea = `A1:C${sheet.rowCount}`;
+    const bytes = await workbook.xlsx.writeBuffer(),
+      url = URL.createObjectURL(
+        new Blob([bytes], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      ),
+      link = document.createElement("a");
+    link.href = url;
+    link.download = `financeiro-${period}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
   const exportPdf = () => {
     const pdf = new jsPDF({ orientation: "landscape" });
