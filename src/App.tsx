@@ -5244,7 +5244,7 @@ function FinancePage({
   const [generalSalaryDate, setGeneralSalaryDate] = useState("");
   const [generalAdvanceDate, setGeneralAdvanceDate] = useState("");
   const [financialDetail, setFinancialDetail] = useState<{
-    key: "salary" | "advance" | "vacation" | "severance" | "pending" | "paid";
+    key: "salary" | "advance" | "vacation" | "severance" | "pending" | "paid" | "total";
     title: string;
   } | null>(null);
   const visibleEmployeeIds = new Set(employees.map((employee) => employee.id));
@@ -5396,6 +5396,8 @@ function FinancePage({
                 ? categories.filter((item) => item.value > 0 && paymentReached(item.date))
                 : financialDetail.key === "pending"
                   ? categories.filter((item) => item.value > 0 && !paymentReached(item.date))
+                  : financialDetail.key === "total"
+                    ? categories.filter((item) => item.value > 0)
                   : categories.filter((item) => item.key === financialDetail.key && item.value > 0);
           return {
             employee,
@@ -5442,6 +5444,22 @@ function FinancePage({
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        onClick={() => setFinancialDetail({ key: "total", title: "Total geral" })}
+        className="mt-4 flex w-full items-center justify-between rounded-2xl border border-t-4 border-slate-300 border-t-slate-800 bg-white p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg"
+      >
+        <div className="flex items-center gap-4">
+          <div className="grid h-12 w-12 place-items-center rounded-xl bg-slate-100 text-slate-800">
+            <DollarSign size={23} />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-slate-800">Total geral</div>
+            <div className="mt-1 text-xs text-slate-400">Pendente + total já pago</div>
+          </div>
+        </div>
+        <div className="text-2xl font-black text-slate-900">{money(Math.max(0, planned - paid) + paid)}</div>
+      </button>
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {[
           {
