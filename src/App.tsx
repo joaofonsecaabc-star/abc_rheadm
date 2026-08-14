@@ -7598,7 +7598,14 @@ export default function App() {
           setItems={setOccurrences}
         />
       ) : (
-        <HRReports employees={filteredEmployees} occurrences={occurrences} />
+        <HRReports
+          employees={accessibleRows.filter(
+            (record) =>
+              (selectedStore === "Todas" || record.store === selectedStore) &&
+              (selectedRole === "Todas" || record.role === selectedRole),
+          )}
+          occurrences={occurrences}
+        />
       )
     ) : page === "Funcionários" ? (
       <EmployeesPage
