@@ -289,12 +289,10 @@ function DismissedEmployeesPage({
 const peopleNav = [
   ["Visão geral", LayoutDashboard],
   ["Ocorrências", TriangleAlert],
-  ["Funcionários", Users],
   ["Relatórios", FileSpreadsheet],
 ] as const;
 const transitNav = [
   ["Visão geral", LayoutDashboard],
-  ["Funcionários", Users],
   ["Recargas", Ticket],
   ["Calendário", CalendarDays],
   ["Relatórios", FileSpreadsheet],
@@ -485,14 +483,22 @@ function Sidebar({
 }) {
   const [userMenu, setUserMenu] = useState(false),
     [signedUser, setSignedUser] = useState<SessionUser | null>(null),
+    [expanded, setExpanded] = useState<Record<Module, boolean>>({
+      people: module === "people",
+      finance: module === "finance",
+      transit: module === "transit",
+    }),
     sections = [
-      { title: "Pessoas", module: "people" as Module, items: peopleNav },
-      { title: "Benefícios", module: "transit" as Module, items: transitNav },
-      { title: "Financeiro", module: "finance" as Module, items: financeNav },
+      { title: "RH", module: "people" as Module, items: peopleNav },
+      { title: "FINANCEIRO", module: "finance" as Module, items: financeNav },
+      { title: "PASSAGENS E CARTÕES", module: "transit" as Module, items: transitNav },
     ];
   useEffect(() => {
     void cloudCurrentUser().then(setSignedUser);
   }, []);
+  useEffect(() => {
+    setExpanded((current) => ({ ...current, [module]: true }));
+  }, [module]);
   const nameParts = (signedUser?.fullName || "Usuário").trim().split(/\s+/),
     shortName =
       nameParts.length > 1
@@ -526,10 +532,23 @@ function Sidebar({
         <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-5">
           {sections.map((section) => (
             <div key={section.module}>
-              <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.18em] text-emerald-200/55">
+              <button
+                type="button"
+                onClick={() =>
+                  setExpanded((current) => ({
+                    ...current,
+                    [section.module]: !current[section.module],
+                  }))
+                }
+                className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-[11px] font-bold tracking-[.12em] transition ${module === section.module ? "bg-white/10 text-white" : "text-emerald-100/60 hover:bg-white/5 hover:text-white"}`}
+              >
                 {section.title}
-              </div>
-              <div className="space-y-1">
+                <ChevronDown
+                  size={16}
+                  className={`ml-auto transition-transform ${expanded[section.module] ? "rotate-180" : ""}`}
+                />
+              </button>
+              {expanded[section.module] && <div className="mt-1 space-y-1 pl-2">
                 {section.items.map(([label, Icon]) => {
                   const active = module === section.module && page === label;
                   return (
@@ -551,7 +570,7 @@ function Sidebar({
                     </button>
                   );
                 })}
-              </div>
+              </div>}
             </div>
           ))}
         </nav>
@@ -3607,6 +3626,8 @@ function ConfigurationsPage({
   financialPeriod,
   setFinancialPeriod,
   module,
+  openEmployeeForm,
+  editEmployee,
 }: {
   positions: string[];
   setPositions: (p: string[]) => void;
@@ -3621,8 +3642,10 @@ function ConfigurationsPage({
   financialPeriod: string;
   setFinancialPeriod: (period: string) => void;
   module: Module;
+  openEmployeeForm: () => void;
+  editEmployee: (employee: Recharge) => void;
 }) {
-  const [tab, setTab] = useState<"geral" | "lojas" | "desligados" | "financeiro" | "perfis">(
+  const [tab, setTab] = useState<"geral" | "funcionarios" | "lojas" | "desligados" | "financeiro" | "perfis">(
     "geral",
   );
   const button = (key: typeof tab, label: string, icon: ReactNode) => (
@@ -3642,6 +3665,11 @@ function ConfigurationsPage({
             "geral",
             "Geral e cargos",
             <Settings className="mr-2 inline" size={16} />,
+          )}
+          {button(
+            "funcionarios",
+            "Funcionários",
+            <Users className="mr-2 inline" size={16} />,
           )}
           {button(
             "lojas",
@@ -3674,6 +3702,41 @@ function ConfigurationsPage({
           unregisteredReasons={unregisteredReasons}
           setUnregisteredReasons={setUnregisteredReasons}
           module={module}
+        />
+      ) : tab === "funcionarios" ? (
+        <HREmployeesPage
+          rows={rows}
+          openForm={openEmployeeForm}
+          edit={editEmployee}
+          toggleCritical={(record) =>
+            setRows(
+              rows.map((item) =>
+                item.id === record.id
+                  ? { ...item, experienceCritical: !item.experienceCritical }
+                  : item,
+              ),
+            )
+          }
+          dismiss={(record, date, notice, start, end) =>
+            setRows(
+              rows.map((item) =>
+                item.id === record.id
+                  ? {
+                      ...item,
+                      active: new Date(date + "T12:00:00") > new Date(),
+                      employmentStatus:
+                        new Date(date + "T12:00:00") > new Date()
+                          ? "Ativo"
+                          : "Desligado",
+                      terminationDate: date,
+                      noticeStart: notice ? start : "",
+                      noticeEnd: notice ? end : "",
+                      experienceCritical: false,
+                    }
+                  : item,
+              ),
+            )
+          }
         />
       ) : tab === "lojas" ? (
         <StoresPage stores={stores} setStores={setStores} />
@@ -7228,6 +7291,8 @@ export default function App() {
         financialPeriod={period}
         setFinancialPeriod={setPeriod}
         module={module || "people"}
+        openEmployeeForm={openNew}
+        editEmployee={openEdit}
       />
     ) : module === "finance" ? (
       page === "Relatórios" ? (
