@@ -3784,6 +3784,7 @@ function ConfigurationsPage({
           setEntries={setFinancialEntries}
           period={financialPeriod}
           setPeriod={setFinancialPeriod}
+          showHidden
         />
       ) : (
         <DismissedEmployeesPage
@@ -5544,7 +5545,6 @@ function FinancePage({
                 <th className="px-5 py-3">Férias</th>
                 <th className="px-5 py-3">Verbas rescisórias</th>
                 <th className="px-5 py-3">Total</th>
-                <th className="px-5 py-3">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -5578,25 +5578,11 @@ function FinancePage({
                     <td className="px-5 py-4">{money(entry?.vacation || 0)}</td>
                     <td className="px-5 py-4">{money(entry?.severance || 0)}</td>
                     <td className="px-5 py-4 font-bold">{money((entry?.salary || 0) + (entry?.advance || 0) + (entry?.vacation || 0) + (entry?.severance || 0))}</td>
-                    <td className="px-5 py-4">
-                      {employee.terminationDate ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Marcar ${employee.employee} como sem pagamentos em ${period.split("-").reverse().join("/")}?`))
-                              update(employee.id, { noPayments: true });
-                          }}
-                          className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600"
-                        >
-                          Sem pagamentos
-                        </button>
-                      ) : "-"}
-                    </td>
                   </tr>
                 );
               })}
               {!employees.length && (
-                <tr><td colSpan={10} className="py-12 text-center text-slate-400">Nenhum funcionário encontrado para os filtros selecionados.</td></tr>
+                <tr><td colSpan={9} className="py-12 text-center text-slate-400">Nenhum funcionário encontrado para os filtros selecionados.</td></tr>
               )}
             </tbody>
           </table>
@@ -5635,36 +5621,40 @@ function FinancialRegistrations({
   setEntries,
   period,
   setPeriod,
+  showHidden = false,
 }: {
   employees: Recharge[];
   entries: FinancialEntry[];
   setEntries: (entries: FinancialEntry[]) => void;
   period: string;
   setPeriod: (period: string) => void;
+  showHidden?: boolean;
 }) {
   const [generalSalaryDate, setGeneralSalaryDate] = useState("");
   const [generalAdvanceDate, setGeneralAdvanceDate] = useState("");
   const [employeeSearch, setEmployeeSearch] = useState("");
-  const searchedEmployees = employees.filter((employee) =>
-    employee.employee
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .includes(
-        employeeSearch
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .toLowerCase()
-          .trim(),
-      ),
-  );
-  const byEmployee = new Map(
-      entries.filter((entry) => entry.period === period).map((entry) => [entry.employeeId, entry]),
-    ),
-    excludedEmployees = new Set(
+  const excludedEmployees = new Set(
       entries
         .filter((entry) => !!entry.noPaymentsFrom && entry.noPaymentsFrom <= period)
         .map((entry) => entry.employeeId),
+    ),
+    searchedEmployees = employees
+      .filter((employee) => showHidden || !excludedEmployees.has(employee.id))
+      .filter((employee) =>
+        employee.employee
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .includes(
+            employeeSearch
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toLowerCase()
+              .trim(),
+          ),
+      );
+  const byEmployee = new Map(
+      entries.filter((entry) => entry.period === period).map((entry) => [entry.employeeId, entry]),
     ),
     update = (employeeId: number, patch: Partial<FinancialEntry>) => {
       const existing = byEmployee.get(employeeId),
@@ -5770,7 +5760,7 @@ function FinancialRegistrations({
                   <div key={field} className="rounded-xl border border-slate-300 bg-slate-50 p-4 shadow-sm"><label className="text-sm font-bold text-slate-700">{label}<input type="number" min="0" step="0.01" value={entry?.[field] || ""} onChange={(event) => update(employee.id, { [field]: Number(event.target.value), noPayments: false })} placeholder="R$ 0,00" className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 font-bold text-slate-900 outline-none focus:border-slate-500" /></label><label className="mt-4 block text-sm font-bold text-slate-700">Data do pagamento<input type="date" value={entry?.[dateField] || ""} onChange={(event) => update(employee.id, { [dateField]: event.target.value || undefined, noPayments: false })} className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 font-bold text-slate-900 outline-none focus:border-slate-500" /></label></div>
                 ))}
               </div>
-              <div className="mt-4 flex gap-2">{entry?.noPayments || excludedEmployees.has(employee.id) ? <button type="button" onClick={() => setEntries(entries.map((item) => item.employeeId === employee.id ? { ...item, noPayments: false, noPaymentsFrom: undefined } : item))} className="rounded-xl bg-forest-700 px-4 py-2.5 text-xs font-bold text-white">Voltar para o Dashboard</button> : employee.terminationDate ? <button type="button" onClick={() => update(employee.id, { noPayments: true, noPaymentsFrom: period })} className="rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-600">Salvar e ocultar</button> : null}</div>
+              <div className="mt-4 flex gap-2">{showHidden && excludedEmployees.has(employee.id) ? <button type="button" onClick={() => setEntries(entries.map((item) => item.employeeId === employee.id ? { ...item, noPayments: false, noPaymentsFrom: undefined } : item))} className="rounded-xl bg-forest-700 px-4 py-2.5 text-xs font-bold text-white">Voltar para cadastros</button> : employee.terminationDate ? <button type="button" onClick={() => update(employee.id, { noPayments: true, noPaymentsFrom: period })} className="rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-600">Salvar e ocultar</button> : null}</div>
             </div>
           );
         })}
@@ -7516,29 +7506,8 @@ export default function App() {
         );
       return financialReference >= terminationMonth && financialReference < visibleUntil;
     }),
-    noPaymentIds = new Set(
-      financialEntries
-        .filter(
-          (entry) =>
-            (entry.period === period && entry.noPayments) ||
-            (!!entry.noPaymentsFrom && entry.noPaymentsFrom <= period),
-        )
-        .map((entry) => entry.employeeId),
-    ),
-    financeEmployees = financeEligibleEmployees.filter(
-      (record) => !noPaymentIds.has(record.id),
-    ),
-    financeReportEmployees = financeEligibleEmployees.filter((record) => {
-      if (!noPaymentIds.has(record.id)) return true;
-      const entry = financialEntries.find(
-        (item) => item.employeeId === record.id && item.period === period,
-      );
-      return !!entry &&
-        (entry.salary > 0 ||
-          entry.advance > 0 ||
-          (entry.vacation || 0) > 0 ||
-          (entry.severance || 0) > 0);
-    });
+    financeEmployees = financeEligibleEmployees,
+    financeReportEmployees = financeEligibleEmployees;
   const content =
     page === "Configurações" && sessionUser?.role === "admin" ? (
       <ConfigurationsPage
