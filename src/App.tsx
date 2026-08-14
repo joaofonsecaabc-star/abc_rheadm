@@ -62,6 +62,30 @@ import {
 } from "./cloud";
 import UserProfiles from "./UserProfiles";
 
+function usePopupBackgroundLock() {
+  useEffect(() => {
+    const body = document.body,
+      html = document.documentElement,
+      previousBodyOverflow = body.style.overflow,
+      previousHtmlOverflow = html.style.overflow;
+    const updateLock = () => {
+      const popupOpen = !!document.querySelector(
+        ".fixed.inset-0.backdrop-blur-sm",
+      );
+      body.style.overflow = popupOpen ? "hidden" : previousBodyOverflow;
+      html.style.overflow = popupOpen ? "hidden" : previousHtmlOverflow;
+    };
+    const observer = new MutationObserver(updateLock);
+    observer.observe(body, { childList: true, subtree: true });
+    updateLock();
+    return () => {
+      observer.disconnect();
+      body.style.overflow = previousBodyOverflow;
+      html.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+}
+
 function FirstAdminScreen({ done }: { done: () => void }) {
   const [fullName, setFullName] = useState(""),
     [username, setUsername] = useState(""),
@@ -7000,6 +7024,7 @@ function OccurrencesPage({
 }
 
 export default function App() {
+  usePopupBackgroundLock();
   const [needsSetup, setNeedsSetup] = useState(false),
     [authChecked, setAuthChecked] = useState(() => !cloudEnabled()),
     [sessionChecked, setSessionChecked] = useState(() => !cloudEnabled());
