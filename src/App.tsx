@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   Menu,
   MoreHorizontal,
+  Pencil,
   Plus,
   ReceiptText,
   Search,
@@ -2727,6 +2728,7 @@ function HREmployeesPage({
   toggleCritical,
   dismiss,
   readOnly = false,
+  manage,
 }: {
   rows: Recharge[];
   openForm?: () => void;
@@ -2740,6 +2742,7 @@ function HREmployeesPage({
     end: string,
   ) => void;
   readOnly?: boolean;
+  manage?: (employee: Recharge) => void;
 }) {
   const [query, setQuery] = useState(""),
     [storeFilter, setStoreFilter] = useState("Todas"),
@@ -2872,9 +2875,14 @@ function HREmployeesPage({
                   </td>
                   <td className="px-5 py-4">
                     {readOnly ? (
-                      <button onClick={() => setViewing(r)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                        <Eye size={16} /> Visualizar
-                      </button>
+                      <div className="flex gap-2">
+                        <button onClick={() => setViewing(r)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                          <Eye size={16} /> Visualizar
+                        </button>
+                        {manage && <button onClick={() => manage(r)} className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white hover:bg-slate-700">
+                          <Pencil size={15} /> Editar
+                        </button>}
+                      </div>
                     ) : <div className="flex gap-2">
                       <button
                         onClick={() => toggleCritical?.(r)}
@@ -3657,12 +3665,13 @@ function ConfigurationsPage({
   openEmployeeForm: () => void;
   editEmployee: (employee: Recharge) => void;
 }) {
-  const [tab, setTab] = useState<"geral" | "funcionarios" | "lojas" | "desligados" | "financeiro" | "perfis">(
-    "geral",
-  );
+  const [tab, setTab] = useState<"geral" | "funcionarios" | "lojas" | "desligados" | "financeiro" | "perfis">(() => {
+    const saved = localStorage.getItem("abc_settings_tab");
+    return saved === "funcionarios" || saved === "lojas" || saved === "desligados" || saved === "financeiro" || saved === "perfis" ? saved : "geral";
+  });
   const button = (key: typeof tab, label: string, icon: ReactNode) => (
     <button
-      onClick={() => setTab(key)}
+      onClick={() => { setTab(key); localStorage.setItem("abc_settings_tab", key); }}
       className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === key ? "bg-forest-700 text-white" : "text-slate-500 hover:bg-slate-50"}`}
     >
       {icon}
@@ -7357,6 +7366,15 @@ export default function App() {
         <HREmployeesPage
           rows={filteredEmployees}
           readOnly
+          manage={
+            sessionUser?.role === "admin"
+              ? (employee) => {
+                  localStorage.setItem("abc_settings_tab", "funcionarios");
+                  setPage("Configurações");
+                  openEdit(employee);
+                }
+              : undefined
+          }
         />
       ) : page === "Ocorrências" ? (
         <OccurrencesPage
