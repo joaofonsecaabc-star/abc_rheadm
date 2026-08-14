@@ -4832,7 +4832,15 @@ function ModuleMenu({
             compartilhados entre os três módulos.
           </p>
         </div>
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
+        <div
+          className={`mx-auto mt-10 grid w-full gap-5 ${
+            allowedModules.length === 1
+              ? "max-w-lg grid-cols-1"
+              : allowedModules.length === 2
+                ? "max-w-4xl md:grid-cols-2"
+                : "max-w-7xl md:grid-cols-3"
+          }`}
+        >
           {allowedModules.includes("people") && <button
             onClick={() => select("people")}
             className="module-card group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-soft transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl dark:border-slate-700 dark:bg-[#25272b] dark:hover:border-slate-500 sm:p-9"
