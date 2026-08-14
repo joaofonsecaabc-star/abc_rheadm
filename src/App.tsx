@@ -561,13 +561,13 @@ function Sidebar({
             <ArrowLeft size={19} />
             Trocar de módulo
           </button>
-          <button
+          {signedUser?.role !== "operator" && <button
             onClick={() => setPage("Configurações")}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-white/75 hover:bg-white/10"
           >
             <Settings size={19} />
             Configurações
-          </button>
+          </button>}
           {userMenu && (
             <div className="absolute bottom-[82px] left-3 right-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 text-slate-700 shadow-2xl">
               <button
@@ -3683,7 +3683,7 @@ function ConfigurationsPage({
       ) : tab === "lojas" ? (
         <StoresPage stores={stores} setStores={setStores} />
       ) : tab === "perfis" ? (
-        <UserProfiles />
+        <UserProfiles stores={stores} />
       ) : tab === "financeiro" ? (
         <FinancialRegistrations
           employees={rows.filter((employee) =>
@@ -6882,7 +6882,7 @@ export default function App() {
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(() =>
     cloudEnabled()
       ? null
-      : { id: 0, username: "local", fullName: "João Fonseca", role: "admin", modules: ["people", "finance", "transit"] },
+      : { id: 0, username: "local", fullName: "João Fonseca", role: "admin", modules: ["people", "finance", "transit"], storeAccess: "*" },
   );
   const [module, setModule] = useState<Module | null>(() => {
     const saved = localStorage.getItem("abc_current_module");
@@ -7059,6 +7059,10 @@ export default function App() {
         .then((user) => {
           setSessionUser(user);
           setLoggedIn(!!user);
+          if (user?.storeAccess && user.storeAccess !== "*") setSelectedStore(user.storeAccess);
+          if (user?.role === "operator" && page === "Configurações") {
+            setPage(module === "finance" ? "Dashboard" : "Visão geral");
+          }
           if (user && module && !user.modules.includes(module)) {
             localStorage.removeItem("abc_current_module");
             localStorage.removeItem("abc_current_page");
@@ -7151,21 +7155,25 @@ export default function App() {
     maxReferenceDay = new Date(refYear, refMonth, 0).getDate(),
     safeReferenceDay = Math.min(referenceDay, maxReferenceDay),
     referenceDate = `${period}-${String(safeReferenceDay).padStart(2, "0")}`;
+  const storeScope = sessionUser?.storeAccess || "*",
+    canAccessStore = (store: string) => storeScope === "*" || store === storeScope,
+    accessibleRows = rows.filter((record) => canAccessStore(record.store)),
+    accessibleStores = stores.filter(canAccessStore);
   const availableRoles = useMemo(
     () =>
-      [...new Set(rows.map((record) => record.role).filter(Boolean))].sort((a, b) =>
+      [...new Set(accessibleRows.map((record) => record.role).filter(Boolean))].sort((a, b) =>
         a.localeCompare(b, "pt-BR"),
       ),
-    [rows],
+    [accessibleRows],
   );
   const viewRows = useMemo(
     () =>
-      monthlyRows(rows, events, period, referenceDate).filter(
+      monthlyRows(accessibleRows, events, period, referenceDate).filter(
         (r) =>
           (selectedStore === "Todas" || r.store === selectedStore) &&
           (selectedRole === "Todas" || r.role === selectedRole),
       ),
-    [rows, events, period, referenceDate, selectedStore, selectedRole],
+    [accessibleRows, events, period, referenceDate, selectedStore, selectedRole],
   );
   const rechargeAlertCount = viewRows.filter(
     (r) => r.status === "Atrasado" || r.status === "Pendente",
@@ -7182,7 +7190,7 @@ export default function App() {
     setRows(rows.filter((r) => r.id !== id));
     setEvents(events.filter((event) => event.employeeId !== id));
   };
-  const operationalRows = rows.filter((r) => !isEmployeeDismissed(r));
+  const operationalRows = accessibleRows.filter((r) => !isEmployeeDismissed(r));
   const filteredEmployees = operationalRows.filter(
     (record) =>
       (selectedStore === "Todas" || record.store === selectedStore) &&
@@ -7190,7 +7198,7 @@ export default function App() {
   );
   const [financialYear, financialMonth] = period.split("-").map(Number),
     financialReference = new Date(financialYear, financialMonth - 1, 1, 12),
-    financeEligibleEmployees = rows.filter((record) => {
+    financeEligibleEmployees = accessibleRows.filter((record) => {
       const matchesFilters =
         (selectedStore === "Todas" || record.store === selectedStore) &&
         (selectedRole === "Todas" || record.role === selectedRole);
@@ -7236,7 +7244,7 @@ export default function App() {
           (entry.severance || 0) > 0);
     });
   const content =
-    page === "Configurações" ? (
+    page === "Configurações" && sessionUser?.role === "admin" ? (
       <ConfigurationsPage
         positions={positions}
         setPositions={setPositions}
@@ -7280,7 +7288,7 @@ export default function App() {
     ) : module === "people" ? (
       page === "Visão geral" ? (
         <HRPage
-          rows={rows.filter(
+          rows={accessibleRows.filter(
             (record) =>
               (selectedStore === "Todas" || record.store === selectedStore) &&
               (selectedRole === "Todas" || record.role === selectedRole),
@@ -7455,7 +7463,7 @@ export default function App() {
             }
           }}
           alertCount={rechargeAlertCount}
-          stores={stores}
+          stores={accessibleStores}
           selectedStore={selectedStore}
           setSelectedStore={setSelectedStore}
           roles={availableRoles}

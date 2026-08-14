@@ -7,5 +7,5 @@ export async function passwordHash(password: string, salt: string) {
 export const cookieValue = (request: Request, name: string) => request.headers.get('Cookie')?.split(';').map(item=>item.trim()).find(item=>item.startsWith(name+'='))?.slice(name.length+1)
 export async function currentUser(request: Request, db: any) {
   const session = cookieValue(request,'abc_session'); if(!session)return null
-  return db.prepare(`SELECT users.id,users.username,users.full_name,users.role,users.modules FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id=? AND sessions.expires_at>CURRENT_TIMESTAMP AND users.active=1`).bind(session).first()
+  return db.prepare(`SELECT users.id,users.username,users.full_name,users.role,users.modules,users.store_access FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id=? AND sessions.expires_at>CURRENT_TIMESTAMP AND users.active=1`).bind(session).first()
 }

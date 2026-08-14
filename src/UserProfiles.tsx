@@ -16,6 +16,7 @@ type UserForm = {
   role: "admin" | "operator";
   active: boolean;
   modules: ModuleAccess[];
+  storeAccess: string;
 };
 
 const empty: UserForm = {
@@ -26,6 +27,7 @@ const empty: UserForm = {
   role: "operator",
   active: true,
   modules: ["people"],
+  storeAccess: "*",
 };
 
 const moduleOptions: Array<{
@@ -39,7 +41,7 @@ const moduleOptions: Array<{
   { value: "transit", label: "Cartões de passagem", description: "Recargas, calendário e transporte", icon: CreditCard },
 ];
 
-export default function UserProfiles() {
+export default function UserProfiles({ stores }: { stores: string[] }) {
   const [users, setUsers] = useState<CloudUser[]>([]);
   const [form, setForm] = useState<UserForm>(empty);
   const [loading, setLoading] = useState(true);
@@ -99,6 +101,13 @@ export default function UserProfiles() {
             <label className="block text-sm font-semibold">Usuário<input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5" /></label>
             <label className="block text-sm font-semibold">{form.id ? "Nova senha (opcional)" : "Senha"}<input required={!form.id} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5" /></label>
             <label className="block text-sm font-semibold">Permissão<select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as "admin" | "operator" })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5"><option value="admin">Administrador</option><option value="operator">Operador</option></select></label>
+            <label className="block text-sm font-semibold">Loja permitida
+              <select value={form.storeAccess} onChange={(e) => setForm({ ...form, storeAccess: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5">
+                <option value="*">Todas as lojas</option>
+                {stores.map((store) => <option key={store} value={store}>{store}</option>)}
+              </select>
+              <span className="mt-1 block text-xs font-normal text-slate-500">O usuário visualizará somente os dados desta loja em todas as áreas.</span>
+            </label>
             <fieldset>
               <legend className="text-sm font-bold text-slate-800">Áreas permitidas</legend>
               <p className="mt-1 text-xs text-slate-500">Marque tudo que este usuário poderá acessar.</p>
@@ -124,10 +133,10 @@ export default function UserProfiles() {
           {loading ? <p className="p-8 text-center text-slate-400">Carregando...</p> : <div className="divide-y divide-slate-100">{users.map((user) => (
             <div key={user.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
               <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 font-bold">{user.fullName.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase()}</div>
-              <div className="min-w-[180px] flex-1"><b>{user.fullName}</b><div className="text-xs text-slate-500">@{user.username}</div><div className="mt-2 flex flex-wrap gap-1">{moduleOptions.filter((item) => user.modules.includes(item.value)).map((item) => <span key={item.value} className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{item.label}</span>)}</div></div>
+              <div className="min-w-[180px] flex-1"><b>{user.fullName}</b><div className="text-xs text-slate-500">@{user.username}</div><div className="mt-2 flex flex-wrap gap-1">{moduleOptions.filter((item) => user.modules.includes(item.value)).map((item) => <span key={item.value} className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{item.label}</span>)}<span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">{user.storeAccess === "*" ? "Todas as lojas" : user.storeAccess}</span></div></div>
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold"><ShieldCheck size={14} />{user.role === "admin" ? "Administrador" : "Operador"}</span>
               <span className={`rounded-full px-3 py-1 text-xs font-bold ${user.active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{user.active ? "Ativo" : "Inativo"}</span>
-              <button onClick={() => setForm({ id: user.id, fullName: user.fullName, username: user.username, password: "", role: user.role, active: user.active, modules: user.modules })} className="rounded-lg border border-slate-200 p-2" title="Editar"><Pencil size={16} /></button>
+              <button onClick={() => setForm({ id: user.id, fullName: user.fullName, username: user.username, password: "", role: user.role, active: user.active, modules: user.modules, storeAccess: user.storeAccess })} className="rounded-lg border border-slate-200 p-2" title="Editar"><Pencil size={16} /></button>
               <button onClick={async () => { await updateCloudUser({ ...user, password: "", active: !user.active }); load(); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">{user.active ? "Desativar" : "Ativar"}</button>
             </div>
           ))}</div>}
