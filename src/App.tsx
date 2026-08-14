@@ -62,6 +62,61 @@ import {
 } from "./cloud";
 import UserProfiles from "./UserProfiles";
 
+function ActionToast() {
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const notify = (text: string) => {
+        if (!text) return;
+        setMessage(text);
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => setMessage(""), 2800);
+      },
+      messageFor = (label: string) => {
+        const text = label.toLocaleLowerCase("pt-BR");
+        if (text.includes("excluir") || text.includes("remover")) return "Registro excluído";
+        if (text.includes("gerar pdf") || text.includes("gerar excel") || text.includes("planilha")) return "Arquivo gerado";
+        if (text.includes("restaur") || text.includes("voltar para cadastro")) return "Cadastro restaurado";
+        if (text.includes("salvar")) return "Alterações salvas";
+        if (text.includes("registrar") || text.includes("confirmar")) return "Solicitação registrada";
+        if (text.includes("adicionar") || text.includes("cadastrar") || text.includes("criar")) return "Cadastro realizado";
+        if (text.includes("aplicar")) return "Alterações aplicadas";
+        if (text.includes("marcar") || text.includes("retirar crítico") || text.includes("desfazer")) return "Atualização realizada";
+        return "";
+      },
+      onSubmit = (event: SubmitEvent) => {
+        const submitter = event.submitter as HTMLElement | null,
+          label = submitter?.textContent?.trim() || "";
+        const result = messageFor(label);
+        if (result) setTimeout(() => notify(result), 120);
+      },
+      onClick = (event: MouseEvent) => {
+        const button = (event.target as HTMLElement).closest("button");
+        if (!button || button.type === "submit" || button.disabled) return;
+        const result = messageFor(button.textContent?.trim() || "");
+        if (result) setTimeout(() => notify(result), 120);
+      };
+    document.addEventListener("submit", onSubmit);
+    document.addEventListener("click", onClick);
+    return () => {
+      document.removeEventListener("submit", onSubmit);
+      document.removeEventListener("click", onClick);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+  return (
+    <div
+      aria-live="polite"
+      className={`pointer-events-none fixed bottom-6 right-6 z-[250] flex items-center gap-3 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-2xl transition-all duration-200 ${message ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
+    >
+      <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-500">
+        <Check size={15} strokeWidth={3} />
+      </span>
+      {message || "Ação concluída"}
+    </div>
+  );
+}
+
 function usePopupBackgroundLock() {
   useEffect(() => {
     const body = document.body,
@@ -7776,6 +7831,7 @@ export default function App() {
             }
           />
         ))}
+      <ActionToast />
     </div>
   );
 }
