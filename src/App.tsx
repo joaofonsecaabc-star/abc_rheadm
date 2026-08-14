@@ -16,6 +16,7 @@ import {
   CreditCard,
   Download,
   DollarSign,
+  Eye,
   HandCoins,
   Hourglass,
   FileSpreadsheet,
@@ -2725,22 +2726,25 @@ function HREmployeesPage({
   edit,
   toggleCritical,
   dismiss,
+  readOnly = false,
 }: {
   rows: Recharge[];
-  openForm: () => void;
-  edit: (r: Recharge) => void;
-  toggleCritical: (r: Recharge) => void;
-  dismiss: (
+  openForm?: () => void;
+  edit?: (r: Recharge) => void;
+  toggleCritical?: (r: Recharge) => void;
+  dismiss?: (
     r: Recharge,
     date: string,
     notice: boolean,
     start: string,
     end: string,
   ) => void;
+  readOnly?: boolean;
 }) {
   const [query, setQuery] = useState(""),
     [storeFilter, setStoreFilter] = useState("Todas"),
-    [dismissing, setDismissing] = useState<Recharge | null>(null);
+    [dismissing, setDismissing] = useState<Recharge | null>(null),
+    [viewing, setViewing] = useState<Recharge | null>(null);
   const stores = [...new Set(rows.map((r) => r.store))].sort(),
     list = rows
       .filter((r) => !isEmployeeDismissed(r))
@@ -2768,14 +2772,14 @@ function HREmployeesPage({
       <SectionHead
         title="Funcionários"
         sub={`${list.length} de ${rows.length} funcionário(s)`}
-        action={
+        action={!readOnly && openForm ? (
           <button
             onClick={openForm}
             className="flex items-center gap-2 rounded-xl bg-forest-700 px-5 py-3 text-sm font-bold text-white shadow-lg"
           >
             <Plus size={18} /> Novo funcionário
           </button>
-        }
+        ) : undefined}
       />
       <div className="rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div className="grid gap-3 border-b border-slate-100 p-5 sm:grid-cols-[1fr_260px]">
@@ -2867,9 +2871,13 @@ function HREmployeesPage({
                     )}
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex gap-2">
+                    {readOnly ? (
+                      <button onClick={() => setViewing(r)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                        <Eye size={16} /> Visualizar
+                      </button>
+                    ) : <div className="flex gap-2">
                       <button
-                        onClick={() => toggleCritical(r)}
+                        onClick={() => toggleCritical?.(r)}
                         className={`rounded-lg border px-3 py-2 text-xs font-semibold ${r.experienceCritical ? "border-slate-300 text-slate-600" : "border-red-200 text-red-600"}`}
                       >
                         {r.experienceCritical
@@ -2877,7 +2885,7 @@ function HREmployeesPage({
                           : "Marcar crítico"}
                       </button>
                       <button
-                        onClick={() => edit(r)}
+                        onClick={() => edit?.(r)}
                         className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700"
                       >
                         Editar
@@ -2891,7 +2899,7 @@ function HREmployeesPage({
                             Demitir funcionário
                           </button>
                         )}
-                    </div>
+                    </div>}
                   </td>
                 </tr>
               ))}
@@ -2904,7 +2912,7 @@ function HREmployeesPage({
           )}
         </div>
       </div>
-      {dismissing && (
+      {!readOnly && dismissing && dismiss && (
         <TerminationModal
           employee={dismissing}
           close={() => setDismissing(null)}
@@ -2914,7 +2922,35 @@ function HREmployeesPage({
           }}
         />
       )}
+      {viewing && <EmployeeDetailsModal employee={viewing} close={() => setViewing(null)} />}
     </main>
+  );
+}
+
+function EmployeeDetailsModal({ employee, close }: { employee: Recharge; close: () => void }) {
+  const money = (value = 0) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const benefit = employee.receivesCostAssistance
+    ? `Ajuda de custo${employee.costAssistanceAmount ? ` · ${money(employee.costAssistanceAmount)}` : ""}`
+    : employee.receivesTransit === false ? "Sem vale-transporte" : "Vale-transporte";
+  const details = [
+    ["Nome completo", employee.employee], ["CPF", employee.cpf || "Não informado"],
+    ["Loja", employee.store], ["Função", employee.role],
+    ["Data de admissão", employee.hiredAt ? formatDate(employee.hiredAt) : "Não informada"],
+    ["Data de nascimento", employee.birthDate ? formatDate(employee.birthDate) : "Não informada"],
+    ["Situação", isDismissalPending(employee) ? "Desligamento em andamento" : employee.employmentStatus || "Ativo"],
+    ["Carteira", employee.formalEmployment === false ? "Sem carteira assinada" : "Carteira assinada"],
+    ["Benefício", benefit], ["Escala", employee.scheduleType || "Personalizada"],
+    ["Prioridade", employee.experienceCritical ? "Crítico" : "Normal"],
+    ["Desligamento", employee.terminationDate ? formatDate(employee.terminationDate) : "Não informado"],
+  ];
+  return createPortal(
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm" onMouseDown={close}>
+      <div className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="flex items-start border-b border-slate-200 px-6 py-5"><div><h3 className="text-xl font-bold text-slate-900">{employee.employee}</h3><p className="text-sm text-slate-500">Ficha completa do funcionário</p></div><button onClick={close} className="ml-auto rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
+        <div className="grid gap-3 p-6 sm:grid-cols-2">{details.map(([label, value]) => <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div><div className="mt-1 font-semibold text-slate-800">{value}</div></div>)}</div>
+        {(employee.receivesTransit !== false && !employee.receivesCostAssistance) && <div className="mx-6 mb-6 rounded-xl border border-slate-200 p-4"><h4 className="font-bold text-slate-900">Cartões de passagem</h4><div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-slate-50 p-3"><b>{employee.cardType || "Cartão principal"}</b><div className="text-sm text-slate-500">Custo diário: {money(employee.cardDailyFare ?? employee.dailyFare ?? 0)}</div></div>{employee.secondCardType && <div className="rounded-lg bg-slate-50 p-3"><b>{employee.secondCardType}</b><div className="text-sm text-slate-500">Custo diário: {money(employee.secondCardDailyFare || 0)}</div></div>}</div></div>}
+      </div>
+    </div>, document.body,
   );
 }
 
@@ -3603,6 +3639,8 @@ function ConfigurationsPage({
   setFinancialEntries,
   financialPeriod,
   setFinancialPeriod,
+  openEmployeeForm,
+  editEmployee,
 }: {
   positions: string[];
   setPositions: (p: string[]) => void;
@@ -3616,8 +3654,10 @@ function ConfigurationsPage({
   setFinancialEntries: (entries: FinancialEntry[]) => void;
   financialPeriod: string;
   setFinancialPeriod: (period: string) => void;
+  openEmployeeForm: () => void;
+  editEmployee: (employee: Recharge) => void;
 }) {
-  const [tab, setTab] = useState<"geral" | "lojas" | "desligados" | "financeiro" | "perfis">(
+  const [tab, setTab] = useState<"geral" | "funcionarios" | "lojas" | "desligados" | "financeiro" | "perfis">(
     "geral",
   );
   const button = (key: typeof tab, label: string, icon: ReactNode) => (
@@ -3637,6 +3677,11 @@ function ConfigurationsPage({
             "geral",
             "Geral e funções",
             <Settings className="mr-2 inline" size={16} />,
+          )}
+          {button(
+            "funcionarios",
+            "Funcionários",
+            <Users className="mr-2 inline" size={16} />,
           )}
           {button(
             "lojas",
@@ -3666,6 +3711,22 @@ function ConfigurationsPage({
           setPositions={setPositions}
           unregisteredReasons={unregisteredReasons}
           setUnregisteredReasons={setUnregisteredReasons}
+        />
+      ) : tab === "funcionarios" ? (
+        <HREmployeesPage
+          rows={rows}
+          openForm={openEmployeeForm}
+          edit={editEmployee}
+          toggleCritical={(record) => setRows(rows.map((item) => item.id === record.id ? { ...item, experienceCritical: !item.experienceCritical } : item))}
+          dismiss={(record, date, notice, start, end) => setRows(rows.map((item) => item.id === record.id ? {
+            ...item,
+            active: new Date(date + "T12:00:00") > new Date(),
+            employmentStatus: new Date(date + "T12:00:00") > new Date() ? "Ativo" : "Desligado",
+            terminationDate: date,
+            noticeStart: notice ? start : "",
+            noticeEnd: notice ? end : "",
+            experienceCritical: false,
+          } : item))}
         />
       ) : tab === "lojas" ? (
         <StoresPage stores={stores} setStores={setStores} />
@@ -7253,6 +7314,8 @@ export default function App() {
         setFinancialEntries={setFinancialEntries}
         financialPeriod={period}
         setFinancialPeriod={setPeriod}
+        openEmployeeForm={openNew}
+        editEmployee={openEdit}
       />
     ) : module === "finance" ? (
       page === "Relatórios" ? (
@@ -7293,37 +7356,7 @@ export default function App() {
       ) : page === "Funcionários" ? (
         <HREmployeesPage
           rows={filteredEmployees}
-          openForm={openNew}
-          edit={openEdit}
-          toggleCritical={(record) =>
-            setRows(
-              rows.map((item) =>
-                item.id === record.id
-                  ? { ...item, experienceCritical: !item.experienceCritical }
-                  : item,
-              ),
-            )
-          }
-          dismiss={(record, date, notice, start, end) =>
-            setRows(
-              rows.map((item) =>
-                item.id === record.id
-                  ? {
-                      ...item,
-                      active: new Date(date + "T12:00:00") > new Date(),
-                      employmentStatus:
-                        new Date(date + "T12:00:00") > new Date()
-                          ? "Ativo"
-                          : "Desligado",
-                      terminationDate: date,
-                      noticeStart: notice ? start : "",
-                      noticeEnd: notice ? end : "",
-                      experienceCritical: false,
-                    }
-                  : item,
-              ),
-            )
-          }
+          readOnly
         />
       ) : page === "Ocorrências" ? (
         <OccurrencesPage
