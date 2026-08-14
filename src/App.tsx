@@ -52,10 +52,10 @@ import {
   cloudEnabled,
   cloudLogin,
   cloudLogout,
-  cloudSession,
   cloudSetupRequired,
   loadCloudState,
   saveCloudState,
+  type ModuleAccess,
   type SessionUser,
 } from "./cloud";
 import UserProfiles from "./UserProfiles";
@@ -4787,11 +4787,13 @@ function ModuleMenu({
   onLogout,
   dark,
   toggleTheme,
+  allowedModules,
 }: {
   select: (module: Module) => void;
   onLogout: () => void;
   dark: boolean;
   toggleTheme: () => void;
+  allowedModules: ModuleAccess[];
 }) {
   return (
     <div className="module-menu min-h-screen bg-slate-100 px-4 py-8 dark:bg-[#111317] sm:px-8">
@@ -4831,7 +4833,7 @@ function ModuleMenu({
           </p>
         </div>
         <div className="mt-10 grid gap-5 md:grid-cols-3">
-          <button
+          {allowedModules.includes("people") && <button
             onClick={() => select("people")}
             className="module-card group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-soft transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl dark:border-slate-700 dark:bg-[#25272b] dark:hover:border-slate-500 sm:p-9"
           >
@@ -4852,8 +4854,8 @@ function ModuleMenu({
                 size={18}
               />
             </span>
-          </button>
-          <button
+          </button>}
+          {allowedModules.includes("transit") && <button
             onClick={() => select("transit")}
             className="module-card group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-soft transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl dark:border-slate-700 dark:bg-[#25272b] dark:hover:border-slate-500 sm:p-9"
           >
@@ -4874,8 +4876,8 @@ function ModuleMenu({
                 size={18}
               />
             </span>
-          </button>
-          <button
+          </button>}
+          {allowedModules.includes("finance") && <button
             onClick={() => select("finance")}
             className="module-card group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-soft transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl dark:border-slate-700 dark:bg-[#25272b] dark:hover:border-slate-500 sm:p-9"
           >
@@ -4892,7 +4894,7 @@ function ModuleMenu({
               Entrar no financeiro
               <ChevronRight className="transition group-hover:translate-x-1" size={18} />
             </span>
-          </button>
+          </button>}
         </div>
       </main>
     </div>
@@ -6877,6 +6879,11 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(() =>
     cloudEnabled() ? false : localStorage.getItem("valefluxo_session") !== "0",
   );
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(() =>
+    cloudEnabled()
+      ? null
+      : { id: 0, username: "local", fullName: "João Fonseca", role: "admin", modules: ["people", "finance", "transit"] },
+  );
   const [module, setModule] = useState<Module | null>(() => {
     const saved = localStorage.getItem("abc_current_module");
     return saved === "people" || saved === "transit" || saved === "finance"
@@ -7048,9 +7055,20 @@ export default function App() {
   ]);
   useEffect(() => {
     if (cloudEnabled())
-      cloudSession()
-        .then(setLoggedIn)
-        .catch(() => setLoggedIn(false))
+      cloudCurrentUser()
+        .then((user) => {
+          setSessionUser(user);
+          setLoggedIn(!!user);
+          if (user && module && !user.modules.includes(module)) {
+            localStorage.removeItem("abc_current_module");
+            localStorage.removeItem("abc_current_page");
+            setModule(null);
+          }
+        })
+        .catch(() => {
+          setSessionUser(null);
+          setLoggedIn(false);
+        })
         .finally(() => setSessionChecked(true));
   }, []);
   useEffect(() => {
@@ -7375,6 +7393,7 @@ export default function App() {
     localStorage.removeItem("abc_current_module");
     localStorage.removeItem("abc_current_page");
     setLoggedIn(false);
+    setSessionUser(null);
     setModule(null);
     setSide(false);
   };
@@ -7395,12 +7414,14 @@ export default function App() {
     return (
       <ModuleMenu
         select={(choice) => {
+          if (!sessionUser?.modules.includes(choice)) return;
           setModule(choice);
           setPage(choice === "finance" ? "Dashboard" : "Visão geral");
         }}
         onLogout={logout}
         dark={dark}
         toggleTheme={() => setDark(!dark)}
+        allowedModules={sessionUser?.modules || []}
       />
     );
   return (
