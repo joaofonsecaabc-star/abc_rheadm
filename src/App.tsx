@@ -5427,12 +5427,12 @@ function FinancePage({
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {[
-          { key: "salary" as const, title: "Pagamento de salário", value: plannedSalary, sub: "Folha cadastrada", icon: Banknote, card: "border-t-blue-500", iconStyle: "bg-blue-50 text-blue-700", valueStyle: "text-blue-700" },
-          { key: "advance" as const, title: "Pagamento de adiantamento", value: plannedAdvance, sub: "Valores cadastrados", icon: HandCoins, card: "border-t-violet-500", iconStyle: "bg-violet-50 text-violet-700", valueStyle: "text-violet-700" },
-          { key: "vacation" as const, title: "Férias", value: plannedVacation, sub: "Valores cadastrados", icon: Umbrella, card: "border-t-amber-500", iconStyle: "bg-amber-50 text-amber-700", valueStyle: "text-amber-700" },
-          { key: "severance" as const, title: "Verbas rescisórias", value: plannedSeverance, sub: "Valores cadastrados", icon: ReceiptText, card: "border-t-red-500", iconStyle: "bg-red-50 text-red-700", valueStyle: "text-red-700" },
-          { key: "pending" as const, title: "Pendente", value: Math.max(0, planned - paid), sub: "Saída prevista", icon: Hourglass, card: "border-t-orange-500", iconStyle: "bg-orange-50 text-orange-700", valueStyle: "text-orange-700" },
-          { key: "paid" as const, title: "Total já pago", value: paid, sub: "Saída realizada", icon: BadgeCheck, card: "border-t-green-500", iconStyle: "bg-green-50 text-green-700", valueStyle: "text-green-700" },
+          { key: "salary" as const, title: "Pagamento de salário", value: plannedSalary, sub: "Folha cadastrada", icon: Banknote, card: "border-t-blue-500 bg-blue-50/60", iconStyle: "bg-blue-100 text-blue-700", valueStyle: "text-blue-700" },
+          { key: "advance" as const, title: "Pagamento de adiantamento", value: plannedAdvance, sub: "Valores cadastrados", icon: HandCoins, card: "border-t-violet-500 bg-violet-50/60", iconStyle: "bg-violet-100 text-violet-700", valueStyle: "text-violet-700" },
+          { key: "vacation" as const, title: "Férias", value: plannedVacation, sub: "Valores cadastrados", icon: Umbrella, card: "border-t-amber-500 bg-amber-50/70", iconStyle: "bg-amber-100 text-amber-700", valueStyle: "text-amber-700" },
+          { key: "severance" as const, title: "Verbas rescisórias", value: plannedSeverance, sub: "Valores cadastrados", icon: ReceiptText, card: "border-t-red-500 bg-red-50/60", iconStyle: "bg-red-100 text-red-700", valueStyle: "text-red-700" },
+          { key: "pending" as const, title: "Pendente", value: Math.max(0, planned - paid), sub: "Saída prevista", icon: Hourglass, card: "border-t-orange-500 bg-orange-50/70", iconStyle: "bg-orange-100 text-orange-700", valueStyle: "text-orange-700" },
+          { key: "paid" as const, title: "Total já pago", value: paid, sub: "Saída realizada", icon: BadgeCheck, card: "border-t-green-500 bg-green-50/60", iconStyle: "bg-green-100 text-green-700", valueStyle: "text-green-700" },
         ].map(({ key, title, value, sub, icon: Icon, card, iconStyle, valueStyle }) => (
           <button type="button" onClick={() => setFinancialDetail({ key, title })} key={title} className={`rounded-2xl border border-t-4 border-slate-200 bg-white p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}>
             <div className={`grid h-11 w-11 place-items-center rounded-xl ${iconStyle}`}>
@@ -5447,10 +5447,10 @@ function FinancePage({
       <button
         type="button"
         onClick={() => setFinancialDetail({ key: "total", title: "Total geral" })}
-        className="mt-4 flex w-full items-center justify-between rounded-2xl border border-t-4 border-slate-300 border-t-slate-800 bg-white p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg"
+        className="mt-4 flex w-full items-center justify-between rounded-2xl border border-t-4 border-cyan-200 border-t-cyan-600 bg-gradient-to-r from-cyan-50 to-sky-100 p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg"
       >
         <div className="flex items-center gap-4">
-          <div className="grid h-12 w-12 place-items-center rounded-xl bg-slate-100 text-slate-800">
+          <div className="grid h-12 w-12 place-items-center rounded-xl bg-cyan-100 text-cyan-800">
             <DollarSign size={23} />
           </div>
           <div>
@@ -5458,7 +5458,7 @@ function FinancePage({
             <div className="mt-1 text-xs text-slate-400">Pendente + total já pago</div>
           </div>
         </div>
-        <div className="text-2xl font-black text-slate-900">{money(Math.max(0, planned - paid) + paid)}</div>
+        <div className="text-2xl font-black text-cyan-900">{money(Math.max(0, planned - paid) + paid)}</div>
       </button>
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {[
