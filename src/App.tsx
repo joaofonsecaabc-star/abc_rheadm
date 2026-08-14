@@ -5888,30 +5888,78 @@ function FinancialReports({
     pdf.text(`Tipos: ${reportKinds.filter((kind) => selectedKinds.includes(kind.key)).map((kind) => kind.label).join(", ")}`, 14, 30);
     let startY = 36;
     groupedRows.forEach((group) => {
-      autoTable(pdf, {
-        startY,
-        head: [[group.store.toUpperCase(), "FUNÇÃO", "VALOR"]],
-        body: [
+      const groupTotal = group.rows.reduce(
+          (sum, { entry }) => sum + selectedValue(entry),
+          0,
+        ),
+        body = [
           ...group.rows.map(({ employee, entry }) => [
             employee.employee.toUpperCase(),
             employee.role.toUpperCase(),
             currency(selectedValue(entry)),
           ]),
-          ["", "TOTAL", currency(group.rows.reduce((sum, { entry }) => sum + selectedValue(entry), 0))],
-        ],
-        styles: { fontSize: 8, lineColor: [80, 80, 80], lineWidth: 0.15 },
-        headStyles: { fillColor: [38, 38, 38], halign: "center", fontStyle: "bold" },
-        columnStyles: { 2: { halign: "right" } },
-        margin: { left: 14, right: 14 },
-      });
-      startY = ((pdf as any).lastAutoTable?.finalY || startY) + 6;
-      if (startY > 180) {
+          ["", "TOTAL", currency(groupTotal)],
+        ];
+      if (startY > 175) {
         pdf.addPage();
         startY = 18;
       }
+      pdf.setFillColor(30, 41, 59);
+      pdf.roundedRect(14, startY, 269, 11, 2, 2, "F");
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(12);
+      pdf.text(group.store.toUpperCase(), 148.5, startY + 7.2, {
+        align: "center",
+      });
+      pdf.setTextColor(15, 23, 42);
+      autoTable(pdf, {
+        startY: startY + 11,
+        head: [["NOME", "FUNÇÃO", "VALOR"]],
+        body,
+        theme: "grid",
+        styles: {
+          font: "helvetica",
+          fontSize: 9,
+          textColor: [15, 23, 42],
+          fillColor: [255, 255, 255],
+          lineColor: [218, 223, 230],
+          lineWidth: 0.12,
+          cellPadding: { top: 3, right: 4, bottom: 3, left: 4 },
+        },
+        headStyles: {
+          fillColor: [229, 231, 235],
+          textColor: [15, 23, 42],
+          fontStyle: "bold",
+          halign: "left",
+        },
+        columnStyles: {
+          0: { cellWidth: 132, fontStyle: "bold" },
+          1: { cellWidth: 92 },
+          2: { cellWidth: 45, halign: "right", fontStyle: "bold" },
+        },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.row.index === body.length - 1) {
+            data.cell.styles.fillColor = [229, 231, 235];
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+        margin: { left: 14, right: 14 },
+      });
+      startY = ((pdf as any).lastAutoTable?.finalY || startY) + 6;
     });
+    if (startY > 188) {
+      pdf.addPage();
+      startY = 18;
+    }
+    pdf.setFillColor(30, 41, 59);
+    pdf.roundedRect(185, startY, 98, 12, 2, 2, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);
-    pdf.text(`TOTAL GERAL: ${currency(filteredTotal)}`, 283, Math.min(startY + 2, 195), { align: "right" });
+    pdf.text(`TOTAL GERAL: ${currency(filteredTotal)}`, 279, startY + 7.7, {
+      align: "right",
+    });
     pdf.save(`financeiro-${period}.pdf`);
   };
   return (
