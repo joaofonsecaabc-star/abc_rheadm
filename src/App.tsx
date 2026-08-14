@@ -470,29 +470,26 @@ function Sidebar({
   open,
   close,
   page,
-  setPage,
   module,
   rechargeAlertCount,
-  onChangeModule,
+  onNavigate,
   onLogout,
 }: {
   open: boolean;
   close: () => void;
   page: string;
-  setPage: (v: string) => void;
   module: Module;
   rechargeAlertCount: number;
-  onChangeModule: () => void;
+  onNavigate: (module: Module, page: string) => void;
   onLogout: () => void;
 }) {
   const [userMenu, setUserMenu] = useState(false),
     [signedUser, setSignedUser] = useState<SessionUser | null>(null),
-    nav =
-      module === "people"
-        ? peopleNav
-        : module === "transit"
-          ? transitNav
-          : financeNav;
+    sections = [
+      { title: "Pessoas", module: "people" as Module, items: peopleNav },
+      { title: "Benefícios", module: "transit" as Module, items: transitNav },
+      { title: "Financeiro", module: "finance" as Module, items: financeNav },
+    ];
   useEffect(() => {
     void cloudCurrentUser().then(setSignedUser);
   }, []);
@@ -511,7 +508,7 @@ function Sidebar({
         className={`fixed inset-0 z-30 bg-black/30 lg:hidden ${open ? "block" : "hidden"}`}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[246px] flex-col bg-forest-900 text-white transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-[268px] flex-col bg-forest-900 text-white transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="relative flex h-32 flex-col items-center justify-center border-b border-white/10 px-5">
           <img
@@ -520,49 +517,47 @@ function Sidebar({
             className="h-[82px] w-[208px] object-contain"
           />
           <span className="text-[9px] font-semibold uppercase tracking-[.18em] text-white/60">
-            {module === "people"
-              ? "Gestão de pessoas"
-              : module === "transit"
-                ? "Cartões de passagem"
-                : "Gestão financeira"}
+            Gestão integrada
           </span>
           <button onClick={close} className="absolute right-4 top-4 lg:hidden">
             <X size={20} />
           </button>
         </div>
-        <div className="px-4 pt-7 text-[10px] font-semibold uppercase tracking-[.18em] text-emerald-200/60">
-          Menu principal
-        </div>
-        <nav className="mt-3 space-y-1 px-3">
-          {nav.map(([label, Icon]) => (
-            <button
-              key={label}
-              onClick={() => {
-                setPage(label);
-                close();
-              }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${page === label ? "bg-white text-forest-900 shadow-lg" : "text-emerald-50/75 hover:bg-white/10 hover:text-white"}`}
-            >
-              <Icon size={19} />
-              {label}
-              {label === "Recargas" && rechargeAlertCount > 0 && (
-                <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white">
-                  {rechargeAlertCount}
-                </span>
-              )}
-            </button>
+        <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-5">
+          {sections.map((section) => (
+            <div key={section.module}>
+              <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.18em] text-emerald-200/55">
+                {section.title}
+              </div>
+              <div className="space-y-1">
+                {section.items.map(([label, Icon]) => {
+                  const active = module === section.module && page === label;
+                  return (
+                    <button
+                      key={`${section.module}-${label}`}
+                      onClick={() => {
+                        onNavigate(section.module, label);
+                        close();
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active ? "bg-white text-forest-900 shadow-lg" : "text-emerald-50/75 hover:bg-white/10 hover:text-white"}`}
+                    >
+                      <Icon size={18} />
+                      {label === "Visão geral" ? "Dashboard" : label}
+                      {section.module === "transit" && label === "Recargas" && rechargeAlertCount > 0 && (
+                        <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white">
+                          {rechargeAlertCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ))}
         </nav>
-        <div className="relative mt-auto border-t border-white/10 p-3">
+        <div className="relative border-t border-white/10 p-3">
           <button
-            onClick={onChangeModule}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-white/75 hover:bg-white/10"
-          >
-            <ArrowLeft size={19} />
-            Trocar de módulo
-          </button>
-          <button
-            onClick={() => setPage("Configurações")}
+            onClick={() => onNavigate(module, "Configurações")}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-white/75 hover:bg-white/10"
           >
             <Settings size={19} />
@@ -6881,7 +6876,7 @@ export default function App() {
     const saved = localStorage.getItem("abc_current_module");
     return saved === "people" || saved === "transit" || saved === "finance"
       ? saved
-      : null;
+      : "people";
   });
   const [side, setSide] = useState(false);
   const [page, setPage] = useState(
@@ -7375,7 +7370,7 @@ export default function App() {
     localStorage.removeItem("abc_current_module");
     localStorage.removeItem("abc_current_page");
     setLoggedIn(false);
-    setModule(null);
+    setModule("people");
     setSide(false);
   };
   if (!authChecked || !sessionChecked) return <InitialLoadingScreen />;
@@ -7386,21 +7381,10 @@ export default function App() {
           if (cloudEnabled()) location.reload();
           else {
             setLoggedIn(true);
-            setModule(null);
+            setModule("people");
+            setPage("Visão geral");
           }
         }}
-      />
-    );
-  if (!module)
-    return (
-      <ModuleMenu
-        select={(choice) => {
-          setModule(choice);
-          setPage(choice === "finance" ? "Dashboard" : "Visão geral");
-        }}
-        onLogout={logout}
-        dark={dark}
-        toggleTheme={() => setDark(!dark)}
       />
     );
   return (
@@ -7409,23 +7393,19 @@ export default function App() {
         open={side}
         close={() => setSide(false)}
         page={page}
-        setPage={setPage}
-        module={module}
+        module={module || "people"}
         rechargeAlertCount={rechargeAlertCount}
-        onChangeModule={() => {
-          localStorage.removeItem("abc_current_module");
-          localStorage.removeItem("abc_current_page");
-          setModule(null);
-          setSide(false);
-          setPage("Visão geral");
+        onNavigate={(nextModule, nextPage) => {
+          setModule(nextModule);
+          setPage(nextPage);
         }}
         onLogout={logout}
       />
-      <div className="lg:pl-[246px]">
+      <div className="lg:pl-[268px]">
         <Header
           menu={() => setSide(true)}
           page={page}
-          module={module}
+          module={module || "people"}
           referenceDate={referenceDate}
           setReferenceDate={(value) => {
             if (value) {
