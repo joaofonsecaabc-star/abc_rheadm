@@ -3449,11 +3449,13 @@ function SettingsPage({
   setPositions,
   unregisteredReasons,
   setUnregisteredReasons,
+  module,
 }: {
   positions: string[];
   setPositions: (p: string[]) => void;
   unregisteredReasons: string[];
   setUnregisteredReasons: (p: string[]) => void;
+  module: Module;
 }) {
   const [advance, setAdvance] = useState(
     () => localStorage.getItem("valefluxo_advance") || "3",
@@ -3467,7 +3469,8 @@ function SettingsPage({
         sub="Defina o comportamento padrão e os cargos disponíveis"
       />
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        {module === "transit" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
             <h3 className="font-bold">Antecedência padrão</h3>
             <p className="mt-1 text-sm text-slate-500">
               Quantidade de dias antes do crédito em que a recarga deve ser
@@ -3493,9 +3496,11 @@ function SettingsPage({
             >
               Salvar configurações
             </button>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
-            <h3 className="font-bold">Funções e cargos</h3>
+          </div>
+        )}
+        {module === "people" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+            <h3 className="font-bold">Cargos</h3>
             <p className="mt-1 text-sm text-slate-500">
               Os cargos aparecem no cadastro dos funcionários.
             </p>
@@ -3544,8 +3549,10 @@ function SettingsPage({
                 </p>
               )}
             </div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+          </div>
+        )}
+        {module === "people" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
             <h3 className="font-bold">Motivos para funcionário sem carteira</h3>
             <p className="mt-1 text-sm text-slate-500">
               Cadastre os motivos disponíveis no cadastro do funcionário.
@@ -3598,7 +3605,8 @@ function SettingsPage({
                 </p>
               )}
             </div>
-        </div>
+          </div>
+        )}
       </div>
     </main>
   );
@@ -3617,6 +3625,7 @@ function ConfigurationsPage({
   setFinancialEntries,
   financialPeriod,
   setFinancialPeriod,
+  module,
   openEmployeeForm,
   editEmployee,
 }: {
@@ -3632,6 +3641,7 @@ function ConfigurationsPage({
   setFinancialEntries: (entries: FinancialEntry[]) => void;
   financialPeriod: string;
   setFinancialPeriod: (period: string) => void;
+  module: Module;
   openEmployeeForm: () => void;
   editEmployee: (employee: Recharge) => void;
 }) {
@@ -3653,7 +3663,7 @@ function ConfigurationsPage({
         <div className="inline-flex flex-wrap rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
           {button(
             "geral",
-            "Geral e funções",
+            "Geral e cargos",
             <Settings className="mr-2 inline" size={16} />,
           )}
           {button(
@@ -3666,12 +3676,14 @@ function ConfigurationsPage({
             "Lojas",
             <Store className="mr-2 inline" size={16} />,
           )}
-          {button(
+          {module === "people" &&
+            button(
               "desligados",
               "Desligados",
               <UserRound className="mr-2 inline" size={16} />,
             )}
-          {button(
+          {module === "finance" &&
+            button(
               "financeiro",
               "Ocultados do financeiro",
               <DollarSign className="mr-2 inline" size={16} />,
@@ -3689,6 +3701,7 @@ function ConfigurationsPage({
           setPositions={setPositions}
           unregisteredReasons={unregisteredReasons}
           setUnregisteredReasons={setUnregisteredReasons}
+          module={module}
         />
       ) : tab === "funcionarios" ? (
         <HREmployeesPage
@@ -7277,6 +7290,7 @@ export default function App() {
         setFinancialEntries={setFinancialEntries}
         financialPeriod={period}
         setFinancialPeriod={setPeriod}
+        module={module || "people"}
         openEmployeeForm={openNew}
         editEmployee={openEdit}
       />
