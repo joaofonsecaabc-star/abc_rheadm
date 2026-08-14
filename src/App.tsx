@@ -6890,7 +6890,7 @@ export default function App() {
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(() =>
     cloudEnabled()
       ? null
-      : { id: 0, username: "local", fullName: "João Fonseca", role: "admin", modules: ["people", "finance", "transit"], storeAccess: "*" },
+      : { id: 0, username: "local", fullName: "João Fonseca", role: "admin", modules: ["people", "finance", "transit"], storeAccess: ["*"] },
   );
   const [module, setModule] = useState<Module | null>(() => {
     const saved = localStorage.getItem("abc_current_module");
@@ -7067,7 +7067,7 @@ export default function App() {
         .then((user) => {
           setSessionUser(user);
           setLoggedIn(!!user);
-          if (user?.storeAccess && user.storeAccess !== "*") setSelectedStore(user.storeAccess);
+          if (user?.storeAccess.length === 1 && user.storeAccess[0] !== "*") setSelectedStore(user.storeAccess[0]);
           if (user?.role === "operator" && page === "Configurações") {
             setPage(module === "finance" ? "Dashboard" : "Visão geral");
           }
@@ -7163,8 +7163,8 @@ export default function App() {
     maxReferenceDay = new Date(refYear, refMonth, 0).getDate(),
     safeReferenceDay = Math.min(referenceDay, maxReferenceDay),
     referenceDate = `${period}-${String(safeReferenceDay).padStart(2, "0")}`;
-  const storeScope = sessionUser?.storeAccess || "*",
-    canAccessStore = (store: string) => storeScope === "*" || store === storeScope,
+  const storeScope = sessionUser?.storeAccess || ["*"],
+    canAccessStore = (store: string) => storeScope.includes("*") || storeScope.includes(store),
     accessibleRows = rows.filter((record) => canAccessStore(record.store)),
     accessibleStores = stores.filter(canAccessStore);
   const availableRoles = useMemo(

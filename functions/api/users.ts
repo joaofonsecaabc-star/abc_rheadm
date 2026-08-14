@@ -21,7 +21,9 @@ export const onRequest = async ({ request, env }: { request: Request; env: any }
   const modules = [...new Set((Array.isArray(body.modules) ? body.modules : []).filter((item: unknown) => validModules.includes(String(item))))]
   if (!modules.length) return json({ error: 'Selecione pelo menos uma área para o usuário.' }, 400)
   const modulesValue = modules.join(',')
-  const storeAccess = String(body.storeAccess || '*').trim() || '*'
+  const requestedStores = Array.isArray(body.storeAccess) ? body.storeAccess.map(String).map((item: string) => item.trim()).filter(Boolean) : [String(body.storeAccess || '*').trim()]
+  if (!requestedStores.length) return json({ error: 'Selecione pelo menos uma loja para o usuário.' }, 400)
+  const storeAccess = requestedStores.includes('*') ? '*' : [...new Set(requestedStores)].join(',')
 
   try {
     if (request.method === 'POST') {
