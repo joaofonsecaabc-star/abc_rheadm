@@ -7334,13 +7334,13 @@ function OccurrencesPage({
       {!reportOnly && (
         <form
           onSubmit={add}
-          className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft md:grid-cols-6"
+          className="mt-5 grid items-end gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft md:grid-cols-2 xl:grid-cols-6"
         >
           <select
             required
             value={form.employeeId}
             onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-            className="rounded-xl border border-slate-200 px-3 py-2.5 md:col-span-2"
+            className="h-12 w-full rounded-xl border border-slate-200 px-3 md:col-span-2"
           >
             <option value="">Funcionário</option>
             {eligible.map((e) => (
@@ -7356,7 +7356,7 @@ function OccurrencesPage({
               type="date"
               value={form.date}
               onChange={(e) => setForm({ ...form, date: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal text-slate-800"
+              className="mt-1 h-12 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-800"
             />
           </label>
           <select
@@ -7364,14 +7364,14 @@ function OccurrencesPage({
             onChange={(e) =>
               setForm({ ...form, type: e.target.value as HROccurrence["type"] })
             }
-            className="rounded-xl border border-slate-200 px-3 py-2.5"
+            className="h-12 w-full rounded-xl border border-slate-200 px-3"
           >
             {["Falta", "Atestado", "Atraso", "Aviso", "Férias"].map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>
           {form.type === "Atraso" ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid h-12 grid-cols-2 gap-2">
               <input
                 required
                 type="number"
@@ -7380,7 +7380,7 @@ function OccurrencesPage({
                 onChange={(e) => setForm({ ...form, hours: e.target.value })}
                 placeholder="Horas"
                 title="Horas de atraso"
-                className="rounded-xl border border-slate-200 px-3 py-2.5"
+                className="h-12 min-w-0 rounded-xl border border-slate-200 px-3"
               />
               <input
                 required
@@ -7391,7 +7391,7 @@ function OccurrencesPage({
                 onChange={(e) => setForm({ ...form, minutes: e.target.value })}
                 placeholder="Minutos"
                 title="Minutos de atraso"
-                className="rounded-xl border border-slate-200 px-3 py-2.5"
+                className="h-12 min-w-0 rounded-xl border border-slate-200 px-3"
               />
             </div>
           ) : form.type === "Atestado" ? (
@@ -7402,7 +7402,7 @@ function OccurrencesPage({
               value={form.days}
               onChange={(e) => setForm({ ...form, days: e.target.value })}
               placeholder="Número de dias"
-              className="rounded-xl border border-slate-200 px-3 py-2.5"
+              className="h-12 w-full rounded-xl border border-slate-200 px-3"
             />
           ) : form.type === "Aviso" || form.type === "Férias" ? (
             <label className="text-xs font-semibold text-slate-600">
@@ -7413,11 +7413,11 @@ function OccurrencesPage({
                 min={form.date}
                 value={form.endDate}
                 onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal text-slate-800"
+                className="mt-1 h-12 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-800"
               />
             </label>
           ) : <div className="hidden md:block" />}
-          <button className="rounded-xl bg-forest-700 px-4 py-2.5 font-semibold text-white">
+          <button className="h-12 w-full rounded-xl bg-forest-700 px-4 font-semibold text-white">
             Registrar
           </button>
         </form>
