@@ -42,22 +42,33 @@ const onRequestPut = async ({ request, env }: Context) => {
     const reasons = Array.isArray(body.unregisteredReasons) ? body.unregisteredReasons : []
     const statements = [
       env.DB.prepare('DELETE FROM recharge_events'),
-      env.DB.prepare('DELETE FROM hr_occurrences'),
-      env.DB.prepare('DELETE FROM employees'),
-      env.DB.prepare('DELETE FROM stores'),
-      env.DB.prepare('DELETE FROM positions'),
-      env.DB.prepare('DELETE FROM unregistered_reasons')
+      env.DB.prepare('DELETE FROM hr_occurrences')
     ]
-    for (const name of stores) statements.push(env.DB.prepare('INSERT INTO stores(name) VALUES (?)').bind(String(name)))
-    for (const name of positions) statements.push(env.DB.prepare('INSERT INTO positions(name) VALUES (?)').bind(String(name)))
-    for (const description of reasons) statements.push(env.DB.prepare('INSERT INTO unregistered_reasons(description) VALUES (?)').bind(String(description)))
+    for (const name of stores) statements.push(env.DB.prepare('INSERT OR IGNORE INTO stores(name) VALUES (?)').bind(String(name)))
+    for (const name of positions) statements.push(env.DB.prepare('INSERT OR IGNORE INTO positions(name) VALUES (?)').bind(String(name)))
+    for (const description of reasons) statements.push(env.DB.prepare('INSERT OR IGNORE INTO unregistered_reasons(description) VALUES (?)').bind(String(description)))
     for (const employee of employees) statements.push(env.DB.prepare(`INSERT INTO employees(
       id,employee_name,cpf,role_name,store_name,phone,hired_at,birth_date,active,employment_status,
       formal_employment,unregistered_start_date,unregistered_reason,experience_days,experience_critical,
       notice_start,notice_end,termination_date,receives_transit,receives_cost_assistance,cost_assistance_amount,
       card_type,card_daily_fare,second_card_type,second_card_daily_fare,recharge_day,advance_days,
       schedule_type,schedule_start_date,work_days_json,data_json
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET
+      employee_name=excluded.employee_name, cpf=excluded.cpf, role_name=excluded.role_name,
+      store_name=excluded.store_name, phone=excluded.phone, hired_at=excluded.hired_at,
+      birth_date=excluded.birth_date, active=excluded.active, employment_status=excluded.employment_status,
+      formal_employment=excluded.formal_employment, unregistered_start_date=excluded.unregistered_start_date,
+      unregistered_reason=excluded.unregistered_reason, experience_days=excluded.experience_days,
+      experience_critical=excluded.experience_critical, notice_start=excluded.notice_start,
+      notice_end=excluded.notice_end, termination_date=excluded.termination_date,
+      receives_transit=excluded.receives_transit, receives_cost_assistance=excluded.receives_cost_assistance,
+      cost_assistance_amount=excluded.cost_assistance_amount, card_type=excluded.card_type,
+      card_daily_fare=excluded.card_daily_fare, second_card_type=excluded.second_card_type,
+      second_card_daily_fare=excluded.second_card_daily_fare, recharge_day=excluded.recharge_day,
+      advance_days=excluded.advance_days, schedule_type=excluded.schedule_type,
+      schedule_start_date=excluded.schedule_start_date, work_days_json=excluded.work_days_json,
+      data_json=excluded.data_json, updated_at=CURRENT_TIMESTAMP`).bind(
       employee.id, employee.employee, employee.cpf || null, employee.role || '', employee.store || '', employee.phone || null,
       employee.hiredAt || null, employee.birthDate || null, employee.active === false ? 0 : 1, employee.employmentStatus || 'Ativo',
       employee.formalEmployment === false ? 0 : 1, employee.unregisteredStartDate || null, employee.unregisteredReason || null,
