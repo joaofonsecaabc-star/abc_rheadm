@@ -908,16 +908,19 @@ function IndicatorDetails({
   title,
   rows,
   close,
+  occurrences = [],
 }: {
   title: string;
   rows: Recharge[];
   close: () => void;
+  occurrences?: HROccurrence[];
 }) {
   const transit = /recarga|valor|vale-transporte/i.test(title),
     experience = /experiência/i.test(title),
     criticalExperience = false,
     criticalPeople = /funcionários críticos/i.test(title),
     notice = /cumprindo aviso/i.test(title),
+    vacation = /de férias/i.test(title),
     termination = /rescisões/i.test(title),
     unregistered = /sem carteira/i.test(title),
     today = new Date();
@@ -957,6 +960,24 @@ function IndicatorDetails({
       end = new Date(r.noticeEnd + "T12:00:00"),
       days = Math.ceil((end.getTime() - today.getTime()) / 86400000);
     return { start, end, days };
+  };
+  const vacationDetails = (r: Recharge) => {
+    const item = occurrences.find((occurrence) => {
+      if (
+        occurrence.employeeId !== r.id ||
+        occurrence.type !== "Férias" ||
+        !occurrence.endDate
+      )
+        return false;
+      const start = new Date(occurrence.date + "T12:00:00"),
+        end = new Date(occurrence.endDate + "T12:00:00");
+      return start <= today && end >= today;
+    });
+    if (!item?.endDate) return null;
+    return {
+      start: new Date(item.date + "T12:00:00"),
+      end: new Date(item.endDate + "T12:00:00"),
+    };
   };
   const tenureDetails = (r: Recharge) => {
     if (!r.hiredAt) return null;
@@ -1012,6 +1033,7 @@ function IndicatorDetails({
             {rows.map((r) => {
               const deadline = experience ? experienceDeadline(r) : null,
                 noticeInfo = notice ? noticeDetails(r) : null,
+                vacationInfo = vacation ? vacationDetails(r) : null,
                 terminationInfo = termination ? terminationDetails(r) : null,
                 unregisteredInfo = unregistered
                   ? {
@@ -1092,6 +1114,15 @@ function IndicatorDetails({
                               : noticeInfo.days === 0
                                 ? "Termina hoje"
                                 : "Aviso encerrado"}
+                        </div>
+                      </>
+                    ) : vacationInfo ? (
+                      <>
+                        <div>
+                          Início: <b>{vacationInfo.start.toLocaleDateString("pt-BR")}</b>
+                        </div>
+                        <div>
+                          Término: <b>{vacationInfo.end.toLocaleDateString("pt-BR")}</b>
                         </div>
                       </>
                     ) : terminationInfo ? (
@@ -6527,6 +6558,19 @@ function HRPage({
         (record) => !employeeNotices.some((item) => item.id === record.id),
       ),
     ],
+    vacationToday = new Date(today),
+    vacationEmployeeIds = new Set(
+      occurrences
+        .filter((item) => {
+          if (item.type !== "Férias" || !item.endDate) return false;
+          vacationToday.setHours(12, 0, 0, 0);
+          const start = new Date(item.date + "T12:00:00"),
+            end = new Date(item.endDate + "T12:00:00");
+          return start <= vacationToday && end >= vacationToday;
+        })
+        .map((item) => item.employeeId),
+    ),
+    vacations = active.filter((employee) => vacationEmployeeIds.has(employee.id)),
     terminations = rows.filter((r) => {
       if (!r.terminationDate) return false;
       const date = new Date(r.terminationDate + "T12:00:00");
@@ -6632,6 +6676,15 @@ function HRPage({
           value={critical.length}
           sub="Acompanhamento prioritário"
           icon={Bell}
+        />
+        <Metric
+          onClick={() =>
+            setDetail({ title: "Funcionários de férias", rows: vacations })
+          }
+          title="Funcionários de férias"
+          value={vacations.length}
+          sub="Férias em andamento"
+          icon={Umbrella}
         />
       </div>
       <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
@@ -6937,6 +6990,7 @@ function HRPage({
         <IndicatorDetails
           title={detail.title}
           rows={detail.rows}
+          occurrences={occurrences}
           close={() => setDetail(null)}
         />
       )}
