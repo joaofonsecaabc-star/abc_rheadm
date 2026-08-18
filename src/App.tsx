@@ -17,6 +17,7 @@ import {
   Download,
   DollarSign,
   Eye,
+  Gift,
   HandCoins,
   Hourglass,
   FileSpreadsheet,
@@ -383,6 +384,7 @@ const transitNav = [
 const financeNav = [
   ["Dashboard", LayoutDashboard],
   ["Cadastros", Plus],
+  ["Bonificação", Gift],
   ["Relatórios", FileSpreadsheet],
 ] as const;
 const formatCpf = (value: string) =>
@@ -5847,6 +5849,204 @@ function FinancialRegistrations({
   );
 }
 
+function BonusPage({
+  employees,
+  occurrences,
+  period,
+  setPeriod,
+}: {
+  employees: Recharge[];
+  occurrences: HROccurrence[];
+  period: string;
+  setPeriod: (period: string) => void;
+}) {
+  const [query, setQuery] = useState(""),
+    [statuses, setStatuses] = useState<Array<"Elegível" | "Não elegível">>([
+      "Elegível",
+      "Não elegível",
+    ]),
+    [year, month] = period.split("-").map(Number),
+    cycleStart = new Date(year, month - 2, 14, 12),
+    cycleEnd = new Date(year, month - 1, 14, 12),
+    paymentDate = new Date(year, month - 1, 15, 12),
+    money = (value: number) =>
+      value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    format = (date: Date) => date.toLocaleDateString("pt-BR"),
+    eligibleEmployees = employees.filter((employee) => {
+      if (
+        !employee.terminationDate &&
+        (employee.active === false || employee.employmentStatus === "Desligado")
+      )
+        return false;
+      const hired = employee.hiredAt
+          ? new Date(employee.hiredAt + "T12:00:00")
+          : null,
+        terminated = employee.terminationDate
+          ? new Date(employee.terminationDate + "T12:00:00")
+          : null;
+      return (!hired || hired <= cycleEnd) && (!terminated || terminated >= cycleStart);
+    }),
+    rows = eligibleEmployees.map((employee) => {
+      const issues = occurrences.filter((item) => {
+        if (item.employeeId !== employee.id || (item.type !== "Falta" && item.type !== "Atestado")) return false;
+        const occurrenceStart = new Date(item.date + "T12:00:00"),
+          occurrenceEnd = new Date(occurrenceStart);
+        occurrenceEnd.setDate(occurrenceEnd.getDate() + (item.type === "Atestado" ? Math.max(1, item.days || 1) - 1 : 0));
+        return occurrenceStart <= cycleEnd && occurrenceEnd >= cycleStart;
+      });
+      return {
+        employee,
+        issues,
+        status: (issues.length ? "Não elegível" : "Elegível") as "Elegível" | "Não elegível",
+        amount: issues.length ? 0 : 80,
+        reason: issues.length
+          ? issues.map((item) => `${item.type} em ${new Date(item.date + "T12:00:00").toLocaleDateString("pt-BR")}`).join("; ")
+          : "Sem faltas ou atestados no ciclo",
+      };
+    }),
+    visibleRows = rows.filter(
+      (row) =>
+        statuses.includes(row.status) &&
+        `${row.employee.employee} ${row.employee.store} ${row.employee.role}`
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .includes(query.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()),
+    ),
+    stores = [...new Set(visibleRows.map((row) => row.employee.store))].sort(),
+    grouped = stores.map((store) => ({
+      store,
+      rows: visibleRows.filter((row) => row.employee.store === store),
+    })),
+    eligibleCount = rows.filter((row) => row.status === "Elegível").length,
+    ineligibleCount = rows.length - eligibleCount,
+    total = eligibleCount * 80;
+
+  const exportPdf = () => {
+    const pdf = new jsPDF({ orientation: "landscape" });
+    pdf.setFillColor(30, 41, 59);
+    pdf.rect(0, 0, 297, 32, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(17);
+    pdf.text("RELATÓRIO DE BONIFICAÇÃO", 14, 14);
+    pdf.setFontSize(9);
+    pdf.text(`Ciclo: ${format(cycleStart)} a ${format(cycleEnd)} | Pagamento: ${format(paymentDate)} | Valor individual: ${money(80)}`, 14, 23);
+    let startY = 39;
+    grouped.forEach((group) => {
+      if (startY > 174) { pdf.addPage(); startY = 18; }
+      pdf.setFillColor(30, 41, 59);
+      pdf.roundedRect(14, startY, 269, 10, 2, 2, "F");
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(11);
+      pdf.text(group.store.toUpperCase(), 148.5, startY + 6.8, { align: "center" });
+      autoTable(pdf, {
+        startY: startY + 10,
+        head: [["NOME", "FUNÇÃO", "STATUS", "MOTIVO", "VALOR"]],
+        body: [
+          ...group.rows.map((row) => [row.employee.employee, row.employee.role, row.status, row.reason, money(row.amount)]),
+          ["", "", "", "TOTAL DA LOJA", money(group.rows.reduce((sum, row) => sum + row.amount, 0))],
+        ],
+        theme: "grid",
+        styles: { fontSize: 8, textColor: [15, 23, 42], lineColor: [218, 223, 230], lineWidth: 0.1 },
+        headStyles: { fillColor: [229, 231, 235], textColor: [15, 23, 42], fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 65, fontStyle: "bold" }, 1: { cellWidth: 46 }, 2: { cellWidth: 30 }, 3: { cellWidth: 90 }, 4: { cellWidth: 38, halign: "right", fontStyle: "bold" } },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.row.index === group.rows.length) {
+            data.cell.styles.fillColor = [229, 231, 235];
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+        margin: { left: 14, right: 14 },
+      });
+      startY = ((pdf as any).lastAutoTable?.finalY || startY) + 6;
+    });
+    if (startY > 186) { pdf.addPage(); startY = 18; }
+    pdf.setFillColor(22, 101, 52);
+    pdf.roundedRect(178, startY, 105, 12, 2, 2, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(11);
+    pdf.text(`TOTAL GERAL: ${money(visibleRows.reduce((sum, row) => sum + row.amount, 0))}`, 279, startY + 7.7, { align: "right" });
+    pdf.save(`bonificacao-${period}.pdf`);
+  };
+
+  const exportExcel = async () => {
+    const workbook = new ExcelJS.Workbook(),
+      sheet = workbook.addWorksheet("Bonificação", { views: [{ showGridLines: false }] }),
+      palette = ["FFE31B23", "FF92D050", "FF0E83C7", "FFF59E0B", "FF7C3AED"];
+    sheet.columns = [{ width: 42 }, { width: 30 }, { width: 18 }, { width: 48 }, { width: 16 }];
+    sheet.mergeCells("A1:E1");
+    const title = sheet.getCell("A1");
+    title.value = `RELATÓRIO DE BONIFICAÇÃO — ${capitalizeMonth(new Date(`${period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })).toUpperCase()}`;
+    title.font = { name: "Arial", size: 15, bold: true, color: { argb: "FFFFFFFF" } };
+    title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF111111" } };
+    title.alignment = { horizontal: "center" };
+    sheet.mergeCells("A2:E2");
+    sheet.getCell("A2").value = `Ciclo: ${format(cycleStart)} a ${format(cycleEnd)} | Pagamento: ${format(paymentDate)} | Valor individual: R$ 80,00`;
+    sheet.getCell("A2").alignment = { horizontal: "center" };
+    sheet.addRow([]);
+    grouped.forEach((group, index) => {
+      const storeRow = sheet.addRow([group.store.toUpperCase()]);
+      sheet.mergeCells(storeRow.number, 1, storeRow.number, 5);
+      storeRow.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      storeRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: palette[index % palette.length] } };
+      storeRow.getCell(1).alignment = { horizontal: "center" };
+      const header = sheet.addRow(["NOME", "FUNÇÃO", "STATUS", "MOTIVO", "VALOR"]);
+      header.eachCell((cell) => { cell.font = { bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } }; });
+      group.rows.forEach((row) => {
+        const excelRow = sheet.addRow([row.employee.employee.toUpperCase(), row.employee.role.toUpperCase(), row.status, row.reason, row.amount]);
+        excelRow.getCell(5).numFmt = '"R$" #,##0.00';
+        excelRow.getCell(1).font = { bold: true };
+        if (row.status === "Não elegível") excelRow.getCell(3).font = { bold: true, color: { argb: "FFDC2626" } };
+      });
+      const subtotal = sheet.addRow(["", "", "", "TOTAL DA LOJA", group.rows.reduce((sum, row) => sum + row.amount, 0)]);
+      subtotal.eachCell((cell) => { cell.font = { bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1D5DB" } }; });
+      subtotal.getCell(5).numFmt = '"R$" #,##0.00';
+      sheet.addRow([]);
+    });
+    const grandTotal = sheet.addRow(["", "", "", "TOTAL GERAL", visibleRows.reduce((sum, row) => sum + row.amount, 0)]);
+    grandTotal.eachCell((cell) => { cell.font = { bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF166534" } }; });
+    grandTotal.getCell(5).numFmt = '"R$" #,##0.00';
+    const bytes = await workbook.xlsx.writeBuffer(),
+      url = URL.createObjectURL(new Blob([bytes])),
+      link = document.createElement("a");
+    link.href = url;
+    link.download = `bonificacao-${period}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <main className="fade-in p-4 sm:p-7">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <SectionHead title="Bonificação" sub="Controle mensal de assiduidade e bonificação de R$ 80,00" />
+        <label className="text-xs font-semibold text-slate-500">Mês de pagamento<input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} className="mt-1 block rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold" /></label>
+      </div>
+      <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        <strong>Ciclo avaliado:</strong> {format(cycleStart)} até {format(cycleEnd)} · <strong>Pagamento:</strong> {format(paymentDate)}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Funcionários avaliados", rows.length, "bg-slate-50 border-slate-300 text-slate-800"],
+          ["Elegíveis", eligibleCount, "bg-emerald-50 border-emerald-300 text-emerald-700"],
+          ["Não elegíveis", ineligibleCount, "bg-red-50 border-red-300 text-red-700"],
+          ["Total da bonificação", money(total), "bg-blue-50 border-blue-300 text-blue-700"],
+        ].map(([label, value, style]) => <div key={String(label)} className={`rounded-2xl border border-t-4 p-5 shadow-soft ${style}`}><Gift size={21}/><div className="mt-4 text-2xl font-black">{value}</div><div className="mt-1 text-sm font-bold">{label}</div></div>)}
+      </div>
+      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft md:grid-cols-[1fr_260px_auto_auto]">
+        <div className="relative"><Search className="absolute left-3 top-3 text-slate-400" size={18}/><input value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Pesquisar funcionário, loja ou função..." className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3"/></div>
+        <details className="relative"><summary className="cursor-pointer list-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold">Status: {statuses.length===2?"Todos":statuses[0]||"Nenhum"}</summary><div className="absolute z-20 mt-2 w-full rounded-xl border bg-white p-3 shadow-xl">{(["Elegível","Não elegível"] as const).map(status=><label key={status} className="flex gap-2 py-2 text-sm"><input type="checkbox" checked={statuses.includes(status)} onChange={()=>setStatuses(current=>current.includes(status)?current.filter(item=>item!==status):[...current,status])}/>{status}</label>)}</div></details>
+        <button onClick={exportPdf} className="rounded-xl border border-red-300 px-4 py-2.5 text-sm font-bold text-red-600">Gerar PDF</button>
+        <button onClick={exportExcel} className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-bold text-white">Gerar Excel</button>
+      </div>
+      <div className="mt-5 space-y-5">
+        {grouped.map((group)=><div key={group.store} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft"><div className="bg-slate-800 px-5 py-3 text-center font-black uppercase text-white">{group.store}</div><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-sm"><thead className="bg-slate-100 text-xs uppercase"><tr><th className="px-4 py-3 text-left">Funcionário</th><th className="px-4 py-3 text-left">Função</th><th className="px-4 py-3 text-left">Status</th><th className="px-4 py-3 text-left">Motivo</th><th className="px-4 py-3 text-right">Valor</th></tr></thead><tbody className="divide-y">{group.rows.map(row=><tr key={row.employee.id}><td className="px-4 py-3 font-bold">{row.employee.employee}</td><td className="px-4 py-3">{row.employee.role}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${row.status==="Elegível"?"bg-emerald-100 text-emerald-700":"bg-red-100 text-red-700"}`}>{row.status}</span></td><td className="px-4 py-3 text-slate-600">{row.reason}</td><td className="px-4 py-3 text-right font-bold">{money(row.amount)}</td></tr>)}</tbody><tfoot className="bg-slate-200 font-black"><tr><td colSpan={4} className="px-4 py-3 text-right">TOTAL DA LOJA</td><td className="px-4 py-3 text-right">{money(group.rows.reduce((sum,row)=>sum+row.amount,0))}</td></tr></tfoot></table></div></div>)}
+        {!visibleRows.length&&<div className="rounded-2xl border bg-white py-12 text-center text-slate-400">Nenhum funcionário para os filtros selecionados.</div>}
+      </div>
+    </main>
+  );
+}
+
 function FinancialReports({
   employees,
   entries,
@@ -7612,6 +7812,17 @@ export default function App() {
           employees={financeEligibleEmployees}
           entries={financialEntries}
           setEntries={setFinancialEntries}
+          period={period}
+          setPeriod={setPeriod}
+        />
+      ) : page === "Bonificação" ? (
+        <BonusPage
+          employees={accessibleRows.filter(
+            (record) =>
+              (selectedStore === "Todas" || record.store === selectedStore) &&
+              (selectedRole === "Todas" || record.role === selectedRole),
+          )}
+          occurrences={occurrences}
           period={period}
           setPeriod={setPeriod}
         />
