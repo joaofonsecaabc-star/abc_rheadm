@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -43,7 +43,6 @@ import {
   type Recharge,
   type Status,
 } from "./data";
-import * as XLSX from "xlsx";
 import HRReports from "./HRReports";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -67,41 +66,16 @@ function ActionToast() {
   const [message, setMessage] = useState("");
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const notify = (text: string) => {
+    const notify = (event: Event) => {
+        const text = (event as CustomEvent<string>).detail;
         if (!text) return;
         setMessage(text);
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => setMessage(""), 2800);
-      },
-      messageFor = (label: string) => {
-        const text = label.toLocaleLowerCase("pt-BR");
-        if (text.includes("excluir") || text.includes("remover")) return "Registro excluído";
-        if (text.includes("gerar pdf") || text.includes("gerar excel") || text.includes("planilha")) return "Arquivo gerado";
-        if (text.includes("restaur") || text.includes("voltar para cadastro")) return "Cadastro restaurado";
-        if (text.includes("salvar")) return "Alterações salvas";
-        if (text.includes("registrar") || text.includes("confirmar")) return "Solicitação registrada";
-        if (text.includes("adicionar") || text.includes("cadastrar") || text.includes("criar")) return "Cadastro realizado";
-        if (text.includes("aplicar")) return "Alterações aplicadas";
-        if (text.includes("marcar") || text.includes("retirar crítico") || text.includes("desfazer")) return "Atualização realizada";
-        return "";
-      },
-      onSubmit = (event: SubmitEvent) => {
-        const submitter = event.submitter as HTMLElement | null,
-          label = submitter?.textContent?.trim() || "";
-        const result = messageFor(label);
-        if (result) setTimeout(() => notify(result), 120);
-      },
-      onClick = (event: MouseEvent) => {
-        const button = (event.target as HTMLElement).closest("button");
-        if (!button || button.type === "submit" || button.disabled) return;
-        const result = messageFor(button.textContent?.trim() || "");
-        if (result) setTimeout(() => notify(result), 120);
       };
-    document.addEventListener("submit", onSubmit);
-    document.addEventListener("click", onClick);
+    window.addEventListener("abc:toast", notify);
     return () => {
-      document.removeEventListener("submit", onSubmit);
-      document.removeEventListener("click", onClick);
+      window.removeEventListener("abc:toast", notify);
       if (timer) clearTimeout(timer);
     };
   }, []);
@@ -3222,12 +3196,6 @@ function EmployeesPage({
                       >
                         Editar
                       </button>
-                      <button
-                        onClick={() => remove(r.id)}
-                        className="text-xs font-semibold text-red-600 hover:underline"
-                      >
-                        Excluir
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -3488,20 +3456,35 @@ function CalendarPage({
   );
 }
 function ReportsPage({ rows }: { rows: Recharge[] }) {
-  const exportXlsx = () => {
-    const data = rows.map((r) => ({
-      Funcionário: r.employee,
-      Loja: r.store,
-      Cartão: r.cardType,
-      "Data crédito": r.creditDate,
-      "Data recarga": r.rechargeDate,
-      Antecedência: r.advance,
-      Status: r.status,
+  const exportXlsx = async () => {
+    const wb = new ExcelJS.Workbook(),
+      ws = wb.addWorksheet("Recargas");
+    ws.columns = [
+      { header: "Funcionário", key: "employee", width: 32 },
+      { header: "Loja", key: "store", width: 24 },
+      { header: "Cartão", key: "card", width: 16 },
+      { header: "Data crédito", key: "credit", width: 16 },
+      { header: "Data recarga", key: "recharge", width: 16 },
+      { header: "Antecedência", key: "advance", width: 14 },
+      { header: "Status", key: "status", width: 16 },
+    ];
+    rows.forEach((r) => ws.addRow({
+      employee: r.employee,
+      store: r.store,
+      card: r.cardType,
+      credit: r.creditDate,
+      recharge: r.rechargeDate,
+      advance: r.advance,
+      status: r.status,
     }));
-    const ws = XLSX.utils.json_to_sheet(data),
-      wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Recargas");
-    XLSX.writeFile(wb, "relatorio-recargas.xlsx");
+    ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+    const bytes = await wb.xlsx.writeBuffer(),
+      link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    link.download = "relatorio-recargas.xlsx";
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
   const exportPdf = () => {
     const doc = new jsPDF();
@@ -7048,11 +7031,13 @@ function OccurrencesPage({
   items,
   setItems,
   reportOnly = false,
+  readOnly = false,
 }: {
   employees: Recharge[];
   items: HROccurrence[];
   setItems: (v: HROccurrence[]) => void;
   reportOnly?: boolean;
+  readOnly?: boolean;
 }) {
   const now = new Date(),
     [detailType, setDetailType] = useState<HROccurrence["type"] | null>(null),
@@ -7344,7 +7329,7 @@ function OccurrencesPage({
           </button>
         </div>
       </div>
-      {!reportOnly && (
+      {!reportOnly && !readOnly && (
         <form
           onSubmit={add}
           className="mt-5 grid items-end gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft md:grid-cols-2 xl:grid-cols-6"
@@ -7439,7 +7424,7 @@ function OccurrencesPage({
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-400">
             <tr>
-              {(reportOnly
+              {(reportOnly || readOnly
                 ? ["Data", "Funcionário", "Loja", "Tipo", "Detalhe"]
                 : ["Data", "Funcionário", "Loja", "Tipo", "Detalhe", "Ação"]
               ).map((h) => (
@@ -7469,7 +7454,7 @@ function OccurrencesPage({
                             ? `De ${formatDate(i.date)} até ${i.endDate ? formatDate(i.endDate) : "data não informada"}`
                           : "Falta registrada nesta data"}
                   </td>
-                  {!reportOnly && (
+                  {!reportOnly && !readOnly && (
                     <td className="px-4 py-3">
                       <button
                         onClick={() =>
@@ -7487,7 +7472,7 @@ function OccurrencesPage({
             {!list.length && (
               <tr>
                 <td
-                  colSpan={reportOnly ? 5 : 6}
+                  colSpan={reportOnly || readOnly ? 5 : 6}
                   className="py-10 text-center text-slate-400"
                 >
                   Nenhuma ocorrência neste mês.
@@ -7648,6 +7633,9 @@ export default function App() {
   });
   const [manualMode, setManualMode] = useState(false);
   const [cloudReady, setCloudReady] = useState(false);
+  const [cloudSaveError, setCloudSaveError] = useState("");
+  const cloudRevision = useRef(0);
+  const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     localStorage.setItem(
       "valefluxo_db_v3",
@@ -7696,6 +7684,7 @@ export default function App() {
     loadCloudState()
       .then((state) => {
         if (!active || !state) return;
+        cloudRevision.current = Number(state.revision || 0);
         const hasRemoteData =
           state.employees.length ||
           state.events.length ||
@@ -7728,7 +7717,7 @@ export default function App() {
   useEffect(() => {
     if (!cloudReady || !cloudEnabled()) return;
     const timer = setTimeout(() => {
-      saveCloudState({
+      const snapshot = {
         employees: rows,
         events,
         occurrences,
@@ -7739,7 +7728,27 @@ export default function App() {
           advanceDays: Number(localStorage.getItem("valefluxo_advance") || 3),
           financialEntries,
         },
-      }).catch((error) => console.error("Falha ao salvar no D1", error));
+      };
+      cloudSaveQueue.current = cloudSaveQueue.current.then(async () => {
+        try {
+          const result = await saveCloudState({
+            ...snapshot,
+            revision: cloudRevision.current,
+          });
+          cloudRevision.current = result.revision;
+          setCloudSaveError("");
+          window.dispatchEvent(
+            new CustomEvent("abc:toast", { detail: "Alterações salvas no banco" }),
+          );
+        } catch (error) {
+          console.error("Falha ao salvar no D1", error);
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Não foi possível salvar no banco.";
+          setCloudSaveError(message);
+        }
+      });
     }, 700);
     return () => clearTimeout(timer);
   }, [
@@ -8020,6 +8029,7 @@ export default function App() {
           employees={filteredEmployees}
           items={occurrences}
           setItems={setOccurrences}
+          readOnly={sessionUser?.role === "operator"}
         />
       ) : (
         <HRReports
@@ -8163,6 +8173,20 @@ export default function App() {
           dark={dark}
           toggleTheme={() => setDark(!dark)}
         />
+        {cloudSaveError && (
+          <div className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 sm:mx-7">
+            <TriangleAlert size={18} className="shrink-0" />
+            <b>Os dados ainda não foram salvos:</b>
+            <span>{cloudSaveError}</span>
+            <button
+              type="button"
+              onClick={() => location.reload()}
+              className="ml-auto rounded-lg bg-red-700 px-3 py-2 text-xs font-bold text-white"
+            >
+              Recarregar dados
+            </button>
+          </div>
+        )}
         {content}
       </div>
       {modal && (

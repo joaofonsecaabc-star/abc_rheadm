@@ -9,6 +9,7 @@ export type CloudState = {
   positions: string[]
   unregisteredReasons: string[]
   settings?: Record<string, unknown>
+  revision: number
 }
 
 export const cloudEnabled = () => !['localhost','127.0.0.1'].includes(location.hostname)
@@ -65,12 +66,19 @@ export async function loadCloudState(): Promise<CloudState | null> {
   return response.json()
 }
 
-export async function saveCloudState(state: CloudState): Promise<void> {
-  if (!cloudEnabled()) return
+export async function saveCloudState(state: CloudState): Promise<{revision:number;savedAt?:string}> {
+  if (!cloudEnabled()) return {revision:state.revision}
   const response = await fetch('/api/state', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(state)
   })
-  if (!response.ok) throw new Error(`D1 respondeu ${response.status}`)
+  const data=await response.json().catch(()=>({})) as {error?:string;code?:string;revision?:number;savedAt?:string}
+  if (!response.ok) {
+    const error=new Error(data.error||`D1 respondeu ${response.status}`) as Error & {status?:number;code?:string}
+    error.status=response.status
+    error.code=data.code
+    throw error
+  }
+  return {revision:Number(data.revision||state.revision),savedAt:data.savedAt}
 }
