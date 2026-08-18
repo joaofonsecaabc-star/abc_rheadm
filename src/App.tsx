@@ -5887,21 +5887,44 @@ function BonusPage({
       return (!hired || hired <= cycleEnd) && (!terminated || terminated >= cycleStart);
     }),
     rows = eligibleEmployees.map((employee) => {
+      const hired = employee.hiredAt
+          ? new Date(employee.hiredAt + "T12:00:00")
+          : null,
+        terminated = employee.terminationDate
+          ? new Date(employee.terminationDate + "T12:00:00")
+          : null,
+        employmentReasons: string[] = [];
+      if (!hired)
+        employmentReasons.push("Data de admissão não informada");
+      else if (hired > cycleStart)
+        employmentReasons.push(
+          `Admitido em ${hired.toLocaleDateString("pt-BR")}, após o início do ciclo`,
+        );
+      if (terminated && terminated < cycleEnd)
+        employmentReasons.push(
+          `Desligado em ${terminated.toLocaleDateString("pt-BR")}, antes do fim do ciclo`,
+        );
       const issues = occurrences.filter((item) => {
         if (item.employeeId !== employee.id || (item.type !== "Falta" && item.type !== "Atestado")) return false;
         const occurrenceStart = new Date(item.date + "T12:00:00"),
           occurrenceEnd = new Date(occurrenceStart);
         occurrenceEnd.setDate(occurrenceEnd.getDate() + (item.type === "Atestado" ? Math.max(1, item.days || 1) - 1 : 0));
         return occurrenceStart <= cycleEnd && occurrenceEnd >= cycleStart;
-      });
+      }),
+        occurrenceReasons = issues.map(
+          (item) =>
+            `${item.type} em ${new Date(item.date + "T12:00:00").toLocaleDateString("pt-BR")}`,
+        ),
+        reasons = [...employmentReasons, ...occurrenceReasons],
+        eligible = reasons.length === 0;
       return {
         employee,
         issues,
-        status: (issues.length ? "Não elegível" : "Elegível") as "Elegível" | "Não elegível",
-        amount: issues.length ? 0 : 80,
-        reason: issues.length
-          ? issues.map((item) => `${item.type} em ${new Date(item.date + "T12:00:00").toLocaleDateString("pt-BR")}`).join("; ")
-          : "Sem faltas ou atestados no ciclo",
+        status: (eligible ? "Elegível" : "Não elegível") as "Elegível" | "Não elegível",
+        amount: eligible ? 80 : 0,
+        reason: eligible
+          ? "Trabalhou o ciclo completo, sem faltas ou atestados"
+          : reasons.join("; "),
       };
     }),
     visibleRows = rows.filter(
@@ -6024,6 +6047,9 @@ function BonusPage({
       </div>
       <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
         <strong>Ciclo avaliado:</strong> {format(cycleStart)} até {format(cycleEnd)} · <strong>Pagamento:</strong> {format(paymentDate)}
+        <div className="mt-1 text-xs text-emerald-800">
+          Para ser elegível, o funcionário precisa ter trabalhado durante todo o ciclo e não possuir falta nem atestado no período.
+        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
