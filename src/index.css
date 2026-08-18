@@ -3,16 +3,18 @@
 @tailwind utilities;
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: #e9ecef; color: #111827; }
+body { margin: 0; min-width: 320px; background: #dfe3e6; color: #111827; }
 html { color-scheme: light; }
 html.dark { color-scheme: dark; }
 html.dark body { background: #0f1115; color: #e5e7eb; }
-html:not(.dark) .bg-white { background-color: #f7f7f5 !important; }
-html:not(.dark) .bg-slate-50 { background-color: #eef0f2 !important; }
-html:not(.dark) .bg-slate-100 { background-color: #e5e7ea !important; }
+html:not(.dark) .bg-white { background-color: #f2f3f2 !important; }
+html:not(.dark) .bg-slate-50 { background-color: #e2e6e9 !important; }
+html:not(.dark) .bg-slate-100 { background-color: #d9dee2 !important; }
+html:not(.dark) .border-slate-100,
+html:not(.dark) .border-slate-200 { border-color: #cbd2d8 !important; }
 html:not(.dark) input,
 html:not(.dark) select,
-html:not(.dark) textarea { background-color: #fafaf9 !important; }
+html:not(.dark) textarea { background-color: #f6f6f4 !important; }
 html.dark .bg-white { background-color: #181b20 !important; }
 html.dark .bg-slate-50 { background-color: #20242a !important; }
 html.dark .bg-slate-100 { background-color: #292e35 !important; }
@@ -30,7 +32,7 @@ html.dark #root > .min-h-screen { background: #0f1115 !important; }
   z-index: 9999;
   display: grid;
   place-items: center;
-  background: #e9ecef;
+  background: #dfe3e6;
 }
 .initial-loading-spinner {
   width: 22px;
