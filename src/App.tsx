@@ -1940,9 +1940,11 @@ function EmployeeModal({
           }}
           className="p-6"
         >
-          <div className="mb-4 text-xs font-bold uppercase tracking-wider text-forest-700">
-            Dados pessoais
+          <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-forest-700">
+            Identificação
           </div>
+          <p className="mb-4 text-xs text-slate-400">Dados pessoais do funcionário.</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome completo">
               <input
@@ -1962,6 +1964,21 @@ function EmployeeModal({
                 placeholder="000.000.000-00"
               />
             </Field>
+            <Field label="Data de nascimento">
+              <input
+                type="date"
+                value={form.birthDate}
+                onChange={(e) => set("birthDate", e.target.value)}
+              />
+            </Field>
+          </div>
+          </section>
+          <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-forest-700">
+            Vínculo profissional
+          </div>
+          <p className="mb-4 text-xs text-slate-400">Cargo, unidade e informações da contratação.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Cargo">
               <select
                 required
@@ -1994,51 +2011,14 @@ function EmployeeModal({
                 onChange={(e) => set("hiredAt", e.target.value)}
               />
             </Field>
-            <Field label="Recebe ajuda de custo">
-              <select
-                value={form.receivesCostAssistance ? "Sim" : "Não"}
-                onChange={(e) => {
-                  const yes = e.target.value === "Sim";
-                  setForm({
-                    ...form,
-                    receivesCostAssistance: yes,
-                    receivesTransit: yes ? false : form.receivesTransit,
-                    hasSecondCard: yes ? false : form.hasSecondCard,
-                  });
-                }}
-              >
-                <option>Sim</option>
-                <option>Não</option>
-              </select>
-            </Field>
-            {form.receivesCostAssistance && (
-              <Field label="Valor mensal da ajuda de custo (R$)">
-                <input
-                  inputMode="numeric"
-                  value={form.costAssistanceAmount}
-                  onChange={(e) =>
-                    set(
-                      "costAssistanceAmount",
-                      formatMoneyInput(e.target.value),
-                    )
-                  }
-                  placeholder="Ex.: 300,00"
-                />
-              </Field>
-            )}
           </div>
-          <div className="my-6 border-t border-slate-100" />
-          <div className="mb-4 text-xs font-bold uppercase tracking-wider text-forest-700">
-            Dados de Recursos Humanos
+          </section>
+          <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-forest-700">
+            Situação trabalhista
           </div>
+          <p className="mb-4 text-xs text-slate-400">Carteira assinada e período de experiência.</p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Data de nascimento">
-              <input
-                type="date"
-                value={form.birthDate}
-                onChange={(e) => set("birthDate", e.target.value)}
-              />
-            </Field>
             {form.formalEmployment && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Período de experiência
@@ -2108,21 +2088,24 @@ function EmployeeModal({
                 </Field>
               </>
             )}
-            {!form.receivesCostAssistance && (
-              <Field label="Recebe vale-transporte">
+          </div>
+          </section>
+          <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+            <div className="mb-1 text-xs font-bold uppercase tracking-wider text-forest-700">
+              Benefícios
+            </div>
+            <p className="mb-4 text-xs text-slate-400">Ajuda de custo ou vale-transporte.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Recebe ajuda de custo">
                 <select
-                  value={form.receivesTransit ? "Sim" : "Não"}
+                  value={form.receivesCostAssistance ? "Sim" : "Não"}
                   onChange={(e) => {
                     const yes = e.target.value === "Sim";
                     setForm({
                       ...form,
-                      receivesTransit: yes,
-                      receivesCostAssistance: yes
-                        ? false
-                        : form.receivesCostAssistance,
-                      costAssistanceAmount: yes
-                        ? ""
-                        : form.costAssistanceAmount,
+                      receivesCostAssistance: yes,
+                      receivesTransit: yes ? false : form.receivesTransit,
+                      hasSecondCard: yes ? false : form.hasSecondCard,
                     });
                   }}
                 >
@@ -2130,15 +2113,45 @@ function EmployeeModal({
                   <option>Não</option>
                 </select>
               </Field>
-            )}
-          </div>
+              {form.receivesCostAssistance && (
+                <Field label="Valor mensal da ajuda de custo (R$)">
+                  <input
+                    inputMode="numeric"
+                    value={form.costAssistanceAmount}
+                    onChange={(e) =>
+                      set("costAssistanceAmount", formatMoneyInput(e.target.value))
+                    }
+                    placeholder="Ex.: 300,00"
+                  />
+                </Field>
+              )}
+              {!form.receivesCostAssistance && (
+                <Field label="Recebe vale-transporte">
+                  <select
+                    value={form.receivesTransit ? "Sim" : "Não"}
+                    onChange={(e) => {
+                      const yes = e.target.value === "Sim";
+                      setForm({
+                        ...form,
+                        receivesTransit: yes,
+                        receivesCostAssistance: yes ? false : form.receivesCostAssistance,
+                        costAssistanceAmount: yes ? "" : form.costAssistanceAmount,
+                      });
+                    }}
+                  >
+                    <option>Sim</option>
+                    <option>Não</option>
+                  </select>
+                </Field>
+              )}
+            </div>
+          </section>
           {form.receivesTransit && !form.receivesCostAssistance && (
             <>
-              <div className="my-6 border-t border-slate-100" />
-              <div className="mb-4 text-xs font-bold uppercase tracking-wider text-forest-700">
+              <div className="mb-1 mt-5 rounded-t-2xl border border-b-0 border-slate-200 bg-slate-50/70 px-5 pt-5 text-xs font-bold uppercase tracking-wider text-forest-700">
                 Cartões e recarga
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 rounded-b-2xl border border-t-0 border-slate-200 bg-slate-50/70 px-5 pb-5 sm:grid-cols-2">
                 <Field label="Tipo do cartão 1">
                   <select
                     value={form.cardType}
