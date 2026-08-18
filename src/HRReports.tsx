@@ -4,11 +4,11 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import type { Recharge } from "./data";
 
-type Occurrence = { id:number; employeeId:number; date:string; endDate?:string; type:"Falta"|"Atestado"|"Atraso"|"Aviso"; hours?:number; minutes?:number; days?:number; note?:string };
-type ReportType = "Completo"|"Atrasos"|"Faltas"|"Atestados"|"Período de experiência"|"Cumprindo aviso"|"Funcionários desligados"|"Dados dos funcionários";
+type Occurrence = { id:number; employeeId:number; date:string; endDate?:string; type:"Falta"|"Atestado"|"Atraso"|"Aviso"|"Férias"; hours?:number; minutes?:number; days?:number; note?:string };
+type ReportType = "Completo"|"Atrasos"|"Faltas"|"Atestados"|"Férias"|"Período de experiência"|"Cumprindo aviso"|"Funcionários desligados"|"Dados dos funcionários";
 type ReportResult = { type: ReportType; headers:string[]; rows:{values:(string|number)[]}[] };
 
-const types:ReportType[]=["Completo","Atrasos","Faltas","Atestados","Período de experiência","Cumprindo aviso","Funcionários desligados","Dados dos funcionários"];
+const types:ReportType[]=["Completo","Atrasos","Faltas","Atestados","Férias","Período de experiência","Cumprindo aviso","Funcionários desligados","Dados dos funcionários"];
 const format=(value?:string)=>value?new Date(value+"T12:00:00").toLocaleDateString("pt-BR"):"-";
 const addDays=(value:string,days:number)=>{const date=new Date(value+"T12:00:00");date.setDate(date.getDate()+days);return date};
 const monthLabel=(value:string)=>{const label=new Date(`${value}-01T12:00:00`).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});return label.charAt(0).toUpperCase()+label.slice(1)};
@@ -42,8 +42,8 @@ export default function HRReports({employees,occurrences}:{employees:Recharge[];
             .map(item=>({employee:map.get(item.employeeId)!,start:item.date,end:item.endDate!}));
         return {type,headers:["Funcionário","CPF","Cargo / setor","Loja","Início do aviso","Término do aviso","Dias restantes"],rows:[...employeeNotices,...occurrenceNotices].map(notice=>{const finish=new Date(notice.end+"T12:00:00"),days=Math.ceil((finish.getTime()-now.getTime())/86400000);return {values:[notice.employee.employee,notice.employee.cpf||"-",notice.employee.role,notice.employee.store,format(notice.start),format(notice.end),days>=0?days:"Encerrado"]}})}
       }
-      const wanted=type==="Atrasos"?"Atraso":type==="Faltas"?"Falta":type==="Atestados"?"Atestado":null,list=wanted?monthOccurrences.filter(item=>item.type===wanted):monthOccurrences;
-      return {type,headers:["Data","Funcionário","Loja","Tipo","Detalhe"],rows:list.map(item=>{const employee=map.get(item.employeeId),detail=item.type==="Atestado"?`${item.days||1} dia(s)`:item.type==="Aviso"?`Até ${format(item.endDate)}`:item.type==="Falta"?"Falta registrada nesta data":`${item.hours||0}h ${item.minutes||0}min`;return {values:[format(item.date),employee?.employee||"Funcionário removido",employee?.store||"-",item.type,detail]}})};
+      const wanted=type==="Atrasos"?"Atraso":type==="Faltas"?"Falta":type==="Atestados"?"Atestado":type==="Férias"?"Férias":null,list=wanted?monthOccurrences.filter(item=>item.type===wanted):monthOccurrences;
+      return {type,headers:["Data","Funcionário","Loja","Tipo","Detalhe"],rows:list.map(item=>{const employee=map.get(item.employeeId),detail=item.type==="Atestado"?`${item.days||1} dia(s)`:item.type==="Aviso"?`Até ${format(item.endDate)}`:item.type==="Férias"?`De ${format(item.date)} até ${format(item.endDate)}`:item.type==="Falta"?"Falta registrada nesta data":`${item.hours||0}h ${item.minutes||0}min`;return {values:[format(item.date),employee?.employee||"Funcionário removido",employee?.store||"-",item.type,detail]}})};
     };
     return selectedTypes.map(build);
   },[employees,occurrences,month,selectedStores,selectedTypes]);

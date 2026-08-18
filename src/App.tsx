@@ -439,7 +439,7 @@ type HROccurrence = {
   employeeId: number;
   date: string;
   endDate?: string;
-  type: "Falta" | "Atestado" | "Atraso" | "Aviso";
+  type: "Falta" | "Atestado" | "Atraso" | "Aviso" | "Férias";
   hours?: number;
   minutes?: number;
   days?: number;
@@ -5905,15 +5905,33 @@ function BonusPage({
           `Desligado em ${terminated.toLocaleDateString("pt-BR")}, antes do fim do ciclo`,
         );
       const issues = occurrences.filter((item) => {
-        if (item.employeeId !== employee.id || (item.type !== "Falta" && item.type !== "Atestado")) return false;
+        if (
+          item.employeeId !== employee.id ||
+          (item.type !== "Falta" &&
+            item.type !== "Atestado" &&
+            item.type !== "Férias")
+        )
+          return false;
         const occurrenceStart = new Date(item.date + "T12:00:00"),
           occurrenceEnd = new Date(occurrenceStart);
-        occurrenceEnd.setDate(occurrenceEnd.getDate() + (item.type === "Atestado" ? Math.max(1, item.days || 1) - 1 : 0));
+        if (item.type === "Férias" && item.endDate) {
+          occurrenceEnd.setTime(
+            new Date(item.endDate + "T12:00:00").getTime(),
+          );
+        } else {
+          occurrenceEnd.setDate(
+            occurrenceEnd.getDate() +
+              (item.type === "Atestado"
+                ? Math.max(1, item.days || 1) - 1
+                : 0),
+          );
+        }
         return occurrenceStart <= cycleEnd && occurrenceEnd >= cycleStart;
       }),
-        occurrenceReasons = issues.map(
-          (item) =>
-            `${item.type} em ${new Date(item.date + "T12:00:00").toLocaleDateString("pt-BR")}`,
+        occurrenceReasons = issues.map((item) =>
+          item.type === "Férias"
+            ? `Férias de ${new Date(item.date + "T12:00:00").toLocaleDateString("pt-BR")} até ${item.endDate ? new Date(item.endDate + "T12:00:00").toLocaleDateString("pt-BR") : "data não informada"}`
+            : `${item.type} em ${new Date(item.date + "T12:00:00").toLocaleDateString("pt-BR")}`,
         ),
         reasons = [...employmentReasons, ...occurrenceReasons],
         eligible = reasons.length === 0;
@@ -7001,6 +7019,7 @@ function OccurrencesPage({
       Atestado: list.filter((i) => i.type === "Atestado").length,
       Atraso: list.filter((i) => i.type === "Atraso").length,
       Aviso: list.filter((i) => i.type === "Aviso").length,
+      Férias: list.filter((i) => i.type === "Férias").length,
     };
   const rows = eligible.map((employee) => {
     const own = list.filter((i) => i.employeeId === employee.id);
@@ -7010,6 +7029,7 @@ function OccurrencesPage({
       certificates: own.filter((i) => i.type === "Atestado").length,
       delays: own.filter((i) => i.type === "Atraso").length,
       warnings: own.filter((i) => i.type === "Aviso").length,
+      vacations: own.filter((i) => i.type === "Férias").length,
       certificateDays: own
         .filter((i) => i.type === "Atestado")
         .reduce((s, i) => s + (i.days || 1), 0),
@@ -7027,7 +7047,10 @@ function OccurrencesPage({
         id: Date.now(),
         employeeId: Number(form.employeeId),
         date: form.date,
-        endDate: form.type === "Aviso" ? form.endDate : undefined,
+        endDate:
+          form.type === "Aviso" || form.type === "Férias"
+            ? form.endDate
+            : undefined,
         type: form.type,
         hours: form.type === "Atraso" ? Number(form.hours) || 0 : undefined,
         minutes: form.type === "Atraso" ? Number(form.minutes) || 0 : undefined,
@@ -7079,6 +7102,7 @@ function OccurrencesPage({
           "Dias atestado",
           "Atrasos",
           "Avisos",
+          "Férias",
           "Min. atraso",
         ],
       ],
@@ -7090,6 +7114,7 @@ function OccurrencesPage({
         x.certificateDays,
         x.delays,
         x.warnings,
+        x.vacations,
         x.minutes,
       ]),
       headStyles: { fillColor: [14, 78, 62] },
@@ -7130,6 +7155,7 @@ function OccurrencesPage({
       "Dias de atestado",
       "Atrasos",
       "Avisos",
+      "Férias",
       "Minutos de atraso",
     ]);
     rows.forEach((x) =>
@@ -7141,6 +7167,7 @@ function OccurrencesPage({
         x.certificateDays,
         x.delays,
         x.warnings,
+        x.vacations,
         x.minutes,
       ]),
     );
@@ -7152,7 +7179,7 @@ function OccurrencesPage({
         fgColor: { argb: "FF0E4E3E" },
       };
     });
-    [28, 20, 10, 12, 16, 10, 10, 18].forEach(
+    [28, 20, 10, 12, 16, 10, 10, 10, 18].forEach(
       (w, i) => (ws.getColumn(i + 1).width = w),
     );
     const bytes = await wb.xlsx.writeBuffer(),
@@ -7175,7 +7202,7 @@ function OccurrencesPage({
             : "Registre faltas, atestados e atrasos dos funcionários"
         }
       />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Metric
           onClick={() => setDetailType("Falta")}
           title="Faltas"
@@ -7203,6 +7230,13 @@ function OccurrencesPage({
           value={counts.Aviso}
           sub="No mês selecionado"
           icon={Bell}
+        />
+        <Metric
+          onClick={() => setDetailType("Férias")}
+          title="Férias"
+          value={counts.Férias}
+          sub="No mês selecionado"
+          icon={Umbrella}
         />
       </div>
       <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
@@ -7261,13 +7295,16 @@ function OccurrencesPage({
               </option>
             ))}
           </select>
-          <input
-            required
-            type="date"
-            value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
-            className="rounded-xl border border-slate-200 px-3 py-2.5"
-          />
+          <label className="text-xs font-semibold text-slate-600">
+            {form.type === "Férias" ? "Início das férias" : "Data"}
+            <input
+              required
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal text-slate-800"
+            />
+          </label>
           <select
             value={form.type}
             onChange={(e) =>
@@ -7275,7 +7312,7 @@ function OccurrencesPage({
             }
             className="rounded-xl border border-slate-200 px-3 py-2.5"
           >
-            {["Falta", "Atestado", "Atraso", "Aviso"].map((t) => (
+            {["Falta", "Atestado", "Atraso", "Aviso", "Férias"].map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>
@@ -7313,16 +7350,18 @@ function OccurrencesPage({
               placeholder="Número de dias"
               className="rounded-xl border border-slate-200 px-3 py-2.5"
             />
-          ) : form.type === "Aviso" ? (
-            <input
-              required
-              type="date"
-              min={form.date}
-              value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              title="Data de término do aviso"
-              className="rounded-xl border border-slate-200 px-3 py-2.5"
-            />
+          ) : form.type === "Aviso" || form.type === "Férias" ? (
+            <label className="text-xs font-semibold text-slate-600">
+              {form.type === "Férias" ? "Fim das férias" : "Término do aviso"}
+              <input
+                required
+                type="date"
+                min={form.date}
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal text-slate-800"
+              />
+            </label>
           ) : <div className="hidden md:block" />}
           <button className="rounded-xl bg-forest-700 px-4 py-2.5 font-semibold text-white">
             Registrar
@@ -7359,6 +7398,8 @@ function OccurrencesPage({
                         ? `${i.days || 1} dia(s) de atestado`
                         : i.type === "Aviso"
                           ? `Até ${i.endDate ? formatDate(i.endDate) : "data não informada"}`
+                          : i.type === "Férias"
+                            ? `De ${formatDate(i.date)} até ${i.endDate ? formatDate(i.endDate) : "data não informada"}`
                           : "Falta registrada nesta data"}
                   </td>
                   {!reportOnly && (
@@ -7396,7 +7437,11 @@ function OccurrencesPage({
               <div className="flex items-center border-b border-slate-200 px-5 py-4">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    {detailType === "Aviso" ? "Avisos" : `${detailType}s`} do mês
+                    {detailType === "Aviso"
+                      ? "Avisos"
+                      : detailType === "Férias"
+                        ? "Férias"
+                        : `${detailType}s`} do mês
                   </h3>
                   <p className="text-xs text-slate-400">
                     {list.filter((item) => item.type === detailType).length} registro(s)
@@ -7419,6 +7464,8 @@ function OccurrencesPage({
                         ? `${item.days || 1} dia(s) de atestado`
                         : item.type === "Aviso"
                           ? `De ${formatDate(item.date)} até ${item.endDate ? formatDate(item.endDate) : "data não informada"}`
+                          : item.type === "Férias"
+                            ? `De ${formatDate(item.date)} até ${item.endDate ? formatDate(item.endDate) : "data não informada"}`
                           : item.type === "Falta"
                             ? "Falta registrada nesta data"
                             : `${item.hours || 0}h ${item.minutes || 0}min`;
