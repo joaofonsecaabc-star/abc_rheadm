@@ -5932,7 +5932,8 @@ function TaxesPage({
   const blank = { description: "", category: "", dueDate: `${period}-10`, amount: "", paid: false, paidAt: "", note: "" };
   const [form, setForm] = useState(blank),
     [editingId, setEditingId] = useState<number | null>(null),
-    [query, setQuery] = useState("");
+    [query, setQuery] = useState(""),
+    [exportStatus, setExportStatus] = useState<"Todos" | "Pagos" | "Não pagos">("Todos");
   useEffect(() => {
     if (!editingId) setForm((current) => ({ ...current, dueDate: `${period}-10` }));
   }, [period]);
@@ -5968,48 +5969,55 @@ function TaxesPage({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const exportExcel = async () => {
-    const workbook = new ExcelJS.Workbook(),
+    const exportEntries = periodEntries.filter((entry) => exportStatus === "Todos" || (exportStatus === "Pagos" ? entry.paid : !entry.paid)),
+      exportCompanies = [...new Set(exportEntries.map((entry) => entry.category || "Sem empresa"))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+      exportGroups = exportCompanies.map((company) => ({ company, rows: exportEntries.filter((entry) => (entry.category || "Sem empresa") === company) })),
+      exportTotal = exportEntries.reduce((sum, entry) => sum + entry.amount, 0),
+      workbook = new ExcelJS.Workbook(),
       sheet = workbook.addWorksheet("Impostos", { views: [{ showGridLines: false }], pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 } }),
       competence = capitalizeMonth(new Date(`${period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })),
       border = { top: { style: "thin" as const, color: { argb: "FF94A3B8" } }, left: { style: "thin" as const, color: { argb: "FF94A3B8" } }, bottom: { style: "thin" as const, color: { argb: "FF94A3B8" } }, right: { style: "thin" as const, color: { argb: "FF94A3B8" } } };
     workbook.creator = "Sacolão ABC";
-    sheet.columns = [{ width: 36 }, { width: 17 }, { width: 18 }, { width: 16 }, { width: 16 }, { width: 42 }];
-    sheet.mergeCells("A1:F1");
+    sheet.columns = [{ width: 42 }, { width: 34 }, { width: 20 }];
+    sheet.mergeCells("A1:C1");
     const title = sheet.getCell("A1");
     title.value = `CONTROLE DE IMPOSTOS — ${competence.toUpperCase()}`;
     title.font = { name: "Arial", size: 15, bold: true, color: { argb: "FFFFFFFF" } };
     title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
     title.alignment = { horizontal: "center", vertical: "middle" };
     sheet.getRow(1).height = 28;
+    sheet.mergeCells("A2:C2");
+    sheet.getCell("A2").value = `FILTRO: ${exportStatus.toUpperCase()}`;
+    sheet.getCell("A2").font = { name: "Arial", size: 10, bold: true, color: { argb: "FF475569" } };
+    sheet.getCell("A2").alignment = { horizontal: "center" };
     sheet.addRow([]);
     const palette = ["FFE31B23", "FF92D050", "FF0E83C7", "FFF59E0B", "FF7C3AED"];
-    companyGroups.forEach((group, groupIndex) => {
+    exportGroups.forEach((group, groupIndex) => {
       const titleRowNumber = sheet.rowCount + 1;
       sheet.addRow([group.company.toUpperCase()]);
-      sheet.mergeCells(titleRowNumber, 1, titleRowNumber, 6);
+      sheet.mergeCells(titleRowNumber, 1, titleRowNumber, 3);
       const companyTitle = sheet.getCell(titleRowNumber, 1);
       companyTitle.font = { name: "Arial", size: 13, bold: true, color: { argb: "FFFFFFFF" } };
       companyTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: palette[groupIndex % palette.length] } };
       companyTitle.alignment = { horizontal: "center", vertical: "middle" };
       companyTitle.border = border;
       sheet.getRow(titleRowNumber).height = 24;
-      const header = sheet.addRow(["GUIA / IMPOSTO", "VENCIMENTO", "VALOR", "SITUAÇÃO", "PAGO EM", "OBSERVAÇÃO"]);
+      const header = sheet.addRow(["NOME DO IMPOSTO", "EMPRESA", "VALOR"]);
       header.height = 23;
       header.eachCell((cell) => { cell.font = { name: "Arial", bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } }; cell.border = border; cell.alignment = { horizontal: "center", vertical: "middle" }; });
-      group.allRows.sort((a, b) => a.dueDate.localeCompare(b.dueDate)).forEach((entry) => {
-        const row = sheet.addRow([entry.description, new Date(`${entry.dueDate}T12:00:00`), entry.amount, entry.paid ? "Pago" : "Pendente", entry.paidAt ? new Date(`${entry.paidAt}T12:00:00`) : "", entry.note || ""]);
+      group.rows.sort((a, b) => a.description.localeCompare(b.description, "pt-BR")).forEach((entry) => {
+        const row = sheet.addRow([entry.description, entry.category, entry.amount]);
         row.height = 21;
         row.eachCell((cell, column) => { cell.border = border; cell.font = { name: "Arial", size: 10, bold: column === 1 || column === 3 }; cell.alignment = { horizontal: column === 3 ? "right" : "left", vertical: "middle" }; });
-        row.getCell(2).numFmt = "dd/mm/yyyy"; row.getCell(3).numFmt = '"R$" #,##0.00'; row.getCell(5).numFmt = "dd/mm/yyyy";
-        row.getCell(4).font = { name: "Arial", size: 10, bold: true, color: { argb: entry.paid ? "FF15803D" : "FFB45309" } };
+        row.getCell(3).numFmt = '"R$" #,##0.00';
       });
-      const companyTotal = group.allRows.reduce((sum, entry) => sum + entry.amount, 0), subtotal = sheet.addRow(["", "TOTAL DA EMPRESA", companyTotal, "", "", ""]);
+      const companyTotal = group.rows.reduce((sum, entry) => sum + entry.amount, 0), subtotal = sheet.addRow(["", "TOTAL DA EMPRESA", companyTotal]);
       subtotal.height = 23;
       subtotal.eachCell((cell) => { cell.font = { name: "Arial", bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1D5DB" } }; cell.border = border; });
       subtotal.getCell(3).numFmt = '"R$" #,##0.00';
       sheet.addRow([]);
     });
-    const totalRow = sheet.addRow(["", "TOTAL GERAL", total, "", "", ""]);
+    const totalRow = sheet.addRow(["", "TOTAL GERAL", exportTotal]);
     totalRow.height = 24;
     totalRow.eachCell((cell) => { cell.font = { name: "Arial", bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }; cell.border = border; });
     totalRow.getCell(3).numFmt = '"R$" #,##0.00';
@@ -6035,7 +6043,7 @@ function TaxesPage({
         </div>
         <button className="mt-4 rounded-xl bg-slate-800 px-5 py-3 text-sm font-bold text-white">{editingId ? "Salvar alterações" : "Cadastrar guia"}</button>
       </form>
-      <div className="mb-5 flex flex-wrap gap-3"><div className="relative min-w-[240px] flex-1"><Search className="absolute left-4 top-3 text-slate-400" size={19} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar guia..." className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-11 pr-4" /></div><button onClick={exportExcel} disabled={!periodEntries.length} className="flex items-center gap-2 rounded-xl bg-forest-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40"><FileSpreadsheet size={18} />Gerar planilha Excel</button></div>
+      <div className="mb-5 flex flex-wrap gap-3"><div className="relative min-w-[240px] flex-1"><Search className="absolute left-4 top-3 text-slate-400" size={19} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar guia..." className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-11 pr-4" /></div><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-500">Exportar<select value={exportStatus} onChange={(event) => setExportStatus(event.target.value as "Todos" | "Pagos" | "Não pagos")} className="bg-transparent py-2.5 text-sm font-bold text-slate-700 outline-none"><option>Todos</option><option>Pagos</option><option>Não pagos</option></select></label><button onClick={exportExcel} disabled={!periodEntries.some((entry) => exportStatus === "Todos" || (exportStatus === "Pagos" ? entry.paid : !entry.paid))} className="flex items-center gap-2 rounded-xl bg-forest-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40"><FileSpreadsheet size={18} />Gerar planilha Excel</button></div>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft"><table className="w-full min-w-[980px] text-sm"><thead className="bg-slate-100 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 text-left">Guia / imposto</th><th className="px-4 py-3 text-left">Empresa</th><th className="px-4 py-3 text-left">Vencimento</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3 text-left">Situação</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody className="divide-y divide-slate-100">{monthEntries.map((entry) => <tr key={entry.id}><td className="px-4 py-3 font-bold">{entry.description}<div className="text-xs font-normal text-slate-400">{entry.note}</div></td><td className="px-4 py-3">{entry.category}</td><td className="px-4 py-3">{formatDateBr(entry.dueDate)}</td><td className="px-4 py-3 text-right font-bold">{money(entry.amount)}</td><td className="px-4 py-3"><span className={`rounded-full px-3 py-1 text-xs font-bold ${entry.paid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{entry.paid ? `Pago${entry.paidAt ? ` em ${formatDateBr(entry.paidAt)}` : ""}` : "Pendente"}</span></td><td className="whitespace-nowrap px-4 py-3 text-right"><button onClick={() => setEntries(entries.map((item) => item.id === entry.id ? { ...item, paid: !item.paid, paidAt: !item.paid ? new Date().toISOString().slice(0, 10) : undefined } : item))} className={`mr-2 rounded-lg px-3 py-2 text-xs font-bold ${entry.paid ? "border border-amber-300 text-amber-700" : "bg-emerald-600 text-white"}`}>{entry.paid ? "Desfazer pagamento" : "Marcar como pago"}</button><button onClick={() => startEdit(entry)} className="mr-2 rounded-lg border border-slate-200 p-2 text-slate-600" aria-label="Editar guia"><Pencil size={16} /></button><button onClick={() => { if (confirm(`Excluir a guia ${entry.description}?`)) setEntries(entries.filter((item) => item.id !== entry.id)); }} className="rounded-lg border border-red-200 p-2 text-red-600" aria-label="Excluir guia"><X size={16} /></button></td></tr>)}{!monthEntries.length && <tr><td colSpan={6} className="py-12 text-center text-slate-400">Nenhuma guia cadastrada neste mês.</td></tr>}</tbody><tfoot className="bg-slate-900 font-black text-white"><tr><td colSpan={3} className="px-4 py-4 text-right">TOTAL DO MÊS</td><td className="px-4 py-4 text-right">{money(total)}</td><td colSpan={2}></td></tr></tfoot></table></div>
     </main>
   );
