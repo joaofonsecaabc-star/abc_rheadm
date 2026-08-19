@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -248,6 +248,17 @@ type FinancialEntry = {
   noPayments?: boolean;
   noPaymentsFrom?: string;
 };
+type TaxEntry = {
+  id: number;
+  period: string;
+  description: string;
+  category: string;
+  dueDate: string;
+  amount: number;
+  paid: boolean;
+  paidAt?: string;
+  note?: string;
+};
 function DismissedEmployeesPage({
   rows,
   restore,
@@ -359,6 +370,7 @@ const financeNav = [
   ["Dashboard", LayoutDashboard],
   ["Cadastros", Plus],
   ["Bonificação", Gift],
+  ["Impostos", ReceiptText],
   ["Relatórios", FileSpreadsheet],
 ] as const;
 const formatCpf = (value: string) =>
@@ -5876,6 +5888,110 @@ function FinancialRegistrations({
   );
 }
 
+function TaxesPage({
+  entries,
+  setEntries,
+  period,
+  setPeriod,
+}: {
+  entries: TaxEntry[];
+  setEntries: (entries: TaxEntry[]) => void;
+  period: string;
+  setPeriod: (period: string) => void;
+}) {
+  const blank = { description: "", category: "", dueDate: `${period}-10`, amount: "", paid: false, paidAt: "", note: "" };
+  const [form, setForm] = useState(blank),
+    [editingId, setEditingId] = useState<number | null>(null),
+    [query, setQuery] = useState("");
+  useEffect(() => {
+    if (!editingId) setForm((current) => ({ ...current, dueDate: `${period}-10` }));
+  }, [period]);
+  const periodEntries = entries.filter((entry) => entry.period === period),
+    monthEntries = periodEntries
+      .filter((entry) => `${entry.description} ${entry.category} ${entry.note || ""}`.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.description.localeCompare(b.description, "pt-BR")),
+    total = periodEntries.reduce((sum, entry) => sum + entry.amount, 0),
+    paidTotal = periodEntries.filter((entry) => entry.paid).reduce((sum, entry) => sum + entry.amount, 0),
+    pendingTotal = total - paidTotal,
+    money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    formatDateBr = (date: string) => date ? new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+  const reset = () => {
+    setEditingId(null);
+    setForm({ ...blank, dueDate: `${period}-10` });
+  };
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const entry: TaxEntry = {
+      id: editingId || Date.now(), period, description: form.description.trim(), category: form.category.trim(),
+      dueDate: form.dueDate, amount: parseMoney(form.amount), paid: form.paid,
+      paidAt: form.paid ? form.paidAt || undefined : undefined, note: form.note.trim() || undefined,
+    };
+    setEntries(editingId ? entries.map((item) => item.id === editingId ? entry : item) : [...entries, entry]);
+    window.dispatchEvent(new CustomEvent("abc:toast", { detail: editingId ? "Guia atualizada" : "Guia cadastrada" }));
+    reset();
+  };
+  const startEdit = (entry: TaxEntry) => {
+    setEditingId(entry.id);
+    setForm({ description: entry.description, category: entry.category, dueDate: entry.dueDate, amount: entry.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 }), paid: entry.paid, paidAt: entry.paidAt || "", note: entry.note || "" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const exportExcel = async () => {
+    const workbook = new ExcelJS.Workbook(),
+      sheet = workbook.addWorksheet("Impostos", { views: [{ showGridLines: false }], pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 } }),
+      competence = capitalizeMonth(new Date(`${period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })),
+      border = { top: { style: "thin" as const, color: { argb: "FF94A3B8" } }, left: { style: "thin" as const, color: { argb: "FF94A3B8" } }, bottom: { style: "thin" as const, color: { argb: "FF94A3B8" } }, right: { style: "thin" as const, color: { argb: "FF94A3B8" } } };
+    workbook.creator = "Sacolão ABC";
+    sheet.columns = [{ width: 34 }, { width: 24 }, { width: 16 }, { width: 18 }, { width: 16 }, { width: 16 }, { width: 42 }];
+    sheet.mergeCells("A1:G1");
+    const title = sheet.getCell("A1");
+    title.value = `CONTROLE DE IMPOSTOS — ${competence.toUpperCase()}`;
+    title.font = { name: "Arial", size: 15, bold: true, color: { argb: "FFFFFFFF" } };
+    title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+    title.alignment = { horizontal: "center", vertical: "middle" };
+    sheet.getRow(1).height = 28;
+    sheet.addRow([]);
+    const header = sheet.addRow(["GUIA / IMPOSTO", "TIPO", "VENCIMENTO", "VALOR", "SITUAÇÃO", "PAGO EM", "OBSERVAÇÃO"]);
+    header.height = 23;
+    header.eachCell((cell) => { cell.font = { name: "Arial", bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } }; cell.border = border; cell.alignment = { horizontal: "center", vertical: "middle" }; });
+    periodEntries.sort((a, b) => a.dueDate.localeCompare(b.dueDate)).forEach((entry) => {
+      const row = sheet.addRow([entry.description, entry.category, new Date(`${entry.dueDate}T12:00:00`), entry.amount, entry.paid ? "Pago" : "Pendente", entry.paidAt ? new Date(`${entry.paidAt}T12:00:00`) : "", entry.note || ""]);
+      row.height = 21;
+      row.eachCell((cell, column) => { cell.border = border; cell.font = { name: "Arial", size: 10, bold: column === 1 || column === 4 }; cell.alignment = { horizontal: column === 4 ? "right" : "left", vertical: "middle" }; });
+      row.getCell(3).numFmt = "dd/mm/yyyy"; row.getCell(4).numFmt = '"R$" #,##0.00'; row.getCell(6).numFmt = "dd/mm/yyyy";
+      row.getCell(5).font = { name: "Arial", size: 10, bold: true, color: { argb: entry.paid ? "FF15803D" : "FFB45309" } };
+    });
+    const totalRow = sheet.addRow(["", "", "TOTAL DO MÊS", total, "", "", ""]);
+    totalRow.height = 24;
+    totalRow.eachCell((cell) => { cell.font = { name: "Arial", bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }; cell.border = border; });
+    totalRow.getCell(4).numFmt = '"R$" #,##0.00';
+    sheet.autoFilter = { from: "A3", to: `G${Math.max(3, sheet.rowCount - 1)}` };
+    sheet.views = [{ state: "frozen", ySplit: 3, showGridLines: false }];
+    const bytes = await workbook.xlsx.writeBuffer(), url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })), link = document.createElement("a");
+    link.href = url; link.download = `impostos-${period}.xlsx`; link.click(); URL.revokeObjectURL(url);
+  };
+  return (
+    <main className="fade-in p-4 sm:p-7">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><SectionHead title="Impostos" sub="Controle mensal de guias, vencimentos e pagamentos" /><label className="text-xs font-semibold text-slate-500">Mês de referência<input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} className="mt-1 block rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold" /></label></div>
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">{[["Total do mês", total, "text-slate-900"], ["Total pago", paidTotal, "text-emerald-700"], ["Pendente", pendingTotal, "text-amber-700"]].map(([label, value, color]) => <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft"><div className="text-xs font-bold uppercase text-slate-400">{label}</div><div className={`mt-2 text-2xl font-black ${color}`}>{money(Number(value))}</div></div>)}</div>
+      <form onSubmit={submit} className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div className="flex items-center justify-between"><div><h3 className="font-bold">{editingId ? "Editar guia" : "Cadastrar nova guia"}</h3><p className="text-xs text-slate-400">Os valores cadastrados entram automaticamente no total do mês.</p></div>{editingId && <button type="button" onClick={reset} className="text-sm font-bold text-slate-500">Cancelar edição</button>}</div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <label className="text-sm font-semibold text-slate-600">Guia / imposto<input required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Ex.: DARF, FGTS, ICMS" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
+          <label className="text-sm font-semibold text-slate-600">Tipo<input required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Ex.: Federal, Estadual" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
+          <label className="text-sm font-semibold text-slate-600">Vencimento<input required type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
+          <label className="text-sm font-semibold text-slate-600">Valor<input required inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: formatMoneyInput(e.target.value) })} placeholder="0,00" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-bold" /></label>
+          <label className="text-sm font-semibold text-slate-600 md:col-span-2">Observação<input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Informação opcional" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
+          <label className="flex items-center gap-3 self-end rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold"><input type="checkbox" checked={form.paid} onChange={(e) => setForm({ ...form, paid: e.target.checked, paidAt: e.target.checked ? (form.paidAt || new Date().toISOString().slice(0, 10)) : "" })} />Guia já paga</label>
+          {form.paid && <label className="text-sm font-semibold text-slate-600">Data do pagamento<input required type="date" value={form.paidAt} onChange={(e) => setForm({ ...form, paidAt: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>}
+        </div>
+        <button className="mt-4 rounded-xl bg-slate-800 px-5 py-3 text-sm font-bold text-white">{editingId ? "Salvar alterações" : "Cadastrar guia"}</button>
+      </form>
+      <div className="mb-5 flex flex-wrap gap-3"><div className="relative min-w-[240px] flex-1"><Search className="absolute left-4 top-3 text-slate-400" size={19} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar guia..." className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-11 pr-4" /></div><button onClick={exportExcel} disabled={!periodEntries.length} className="flex items-center gap-2 rounded-xl bg-forest-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40"><FileSpreadsheet size={18} />Gerar planilha Excel</button></div>
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-soft"><table className="w-full min-w-[900px] text-sm"><thead className="bg-slate-100 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3 text-left">Guia / imposto</th><th className="px-4 py-3 text-left">Tipo</th><th className="px-4 py-3 text-left">Vencimento</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3 text-left">Situação</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody className="divide-y divide-slate-100">{monthEntries.map((entry) => <tr key={entry.id}><td className="px-4 py-3 font-bold">{entry.description}<div className="text-xs font-normal text-slate-400">{entry.note}</div></td><td className="px-4 py-3">{entry.category}</td><td className="px-4 py-3">{formatDateBr(entry.dueDate)}</td><td className="px-4 py-3 text-right font-bold">{money(entry.amount)}</td><td className="px-4 py-3"><button onClick={() => setEntries(entries.map((item) => item.id === entry.id ? { ...item, paid: !item.paid, paidAt: !item.paid ? new Date().toISOString().slice(0, 10) : undefined } : item))} className={`rounded-full px-3 py-1 text-xs font-bold ${entry.paid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{entry.paid ? `Pago${entry.paidAt ? ` em ${formatDateBr(entry.paidAt)}` : ""}` : "Pendente"}</button></td><td className="px-4 py-3 text-right"><button onClick={() => startEdit(entry)} className="mr-2 rounded-lg border border-slate-200 p-2 text-slate-600" aria-label="Editar guia"><Pencil size={16} /></button><button onClick={() => { if (confirm(`Excluir a guia ${entry.description}?`)) setEntries(entries.filter((item) => item.id !== entry.id)); }} className="rounded-lg border border-red-200 p-2 text-red-600" aria-label="Excluir guia"><X size={16} /></button></td></tr>)}{!monthEntries.length && <tr><td colSpan={6} className="py-12 text-center text-slate-400">Nenhuma guia cadastrada neste mês.</td></tr>}</tbody><tfoot className="bg-slate-900 font-black text-white"><tr><td colSpan={3} className="px-4 py-4 text-right">TOTAL DO MÊS</td><td className="px-4 py-4 text-right">{money(total)}</td><td colSpan={2}></td></tr></tfoot></table></div>
+    </main>
+  );
+}
+
 function BonusPage({
   employees,
   occurrences,
@@ -7631,6 +7747,13 @@ export default function App() {
       return [];
     }
   });
+  const [taxEntries, setTaxEntries] = useState<TaxEntry[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("abc_tax_entries") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const [manualMode, setManualMode] = useState(false);
   const [cloudReady, setCloudReady] = useState(false);
   const [cloudSaveError, setCloudSaveError] = useState("");
@@ -7663,6 +7786,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("abc_financial_entries", JSON.stringify(financialEntries));
   }, [financialEntries]);
+  useEffect(() => {
+    localStorage.setItem("abc_tax_entries", JSON.stringify(taxEntries));
+  }, [taxEntries]);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("valefluxo_theme", dark ? "dark" : "light");
@@ -7703,6 +7829,11 @@ export default function App() {
               ? (state.settings.financialEntries as FinancialEntry[])
               : [],
           );
+          setTaxEntries(
+            Array.isArray(state.settings?.taxEntries)
+              ? (state.settings.taxEntries as TaxEntry[])
+              : [],
+          );
         }
         setCloudReady(true);
       })
@@ -7727,6 +7858,7 @@ export default function App() {
         settings: {
           advanceDays: Number(localStorage.getItem("valefluxo_advance") || 3),
           financialEntries,
+          taxEntries,
         },
       };
       cloudSaveQueue.current = cloudSaveQueue.current.then(async () => {
@@ -7760,6 +7892,7 @@ export default function App() {
     positions,
     unregisteredReasons,
     financialEntries,
+    taxEntries,
   ]);
   useEffect(() => {
     if (cloudEnabled())
@@ -7972,6 +8105,13 @@ export default function App() {
               (selectedRole === "Todas" || record.role === selectedRole),
           )}
           occurrences={occurrences}
+          period={period}
+          setPeriod={setPeriod}
+        />
+      ) : page === "Impostos" ? (
+        <TaxesPage
+          entries={taxEntries}
+          setEntries={setTaxEntries}
           period={period}
           setPeriod={setPeriod}
         />

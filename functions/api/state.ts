@@ -115,19 +115,24 @@ const onRequestPut = async ({ request, env }: Context, user: User) => {
       for (const employee of employees) statements.push(employeeUpsert(env, employee))
       if (body.settings) for (const [key, value] of Object.entries(body.settings)) statements.push(env.DB.prepare(`INSERT INTO app_settings(key,value_json,updated_at) VALUES (?,?,CURRENT_TIMESTAMP)
         ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=CURRENT_TIMESTAMP`).bind(key,JSON.stringify(value)))
-    } else if (moduleAllowed(user, 'finance') && Array.isArray(body.settings?.financialEntries)) {
-      const incomingEntries = body.settings.financialEntries
-      if (incomingEntries.some((entry: any) => !allowedEmployeeIds.has(Number(entry.employeeId))))
-        return json({ error: 'Há lançamento financeiro de funcionário sem permissão.' }, 403)
-      const savedSetting = await env.DB.prepare("SELECT value_json FROM app_settings WHERE key='financialEntries'").first()
-      let savedEntries: any[] = []
-      try { savedEntries = JSON.parse(savedSetting?.value_json || '[]') } catch { savedEntries = [] }
-      const mergedEntries = [
-        ...savedEntries.filter((entry: any) => !allowedEmployeeIds.has(Number(entry.employeeId))),
-        ...incomingEntries,
-      ]
-      statements.push(env.DB.prepare(`INSERT INTO app_settings(key,value_json,updated_at) VALUES ('financialEntries',?,CURRENT_TIMESTAMP)
-        ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=CURRENT_TIMESTAMP`).bind(JSON.stringify(mergedEntries)))
+    } else if (moduleAllowed(user, 'finance') && body.settings) {
+      if (Array.isArray(body.settings.financialEntries)) {
+        const incomingEntries = body.settings.financialEntries
+        if (incomingEntries.some((entry: any) => !allowedEmployeeIds.has(Number(entry.employeeId))))
+          return json({ error: 'Há lançamento financeiro de funcionário sem permissão.' }, 403)
+        const savedSetting = await env.DB.prepare("SELECT value_json FROM app_settings WHERE key='financialEntries'").first()
+        let savedEntries: any[] = []
+        try { savedEntries = JSON.parse(savedSetting?.value_json || '[]') } catch { savedEntries = [] }
+        const mergedEntries = [
+          ...savedEntries.filter((entry: any) => !allowedEmployeeIds.has(Number(entry.employeeId))),
+          ...incomingEntries,
+        ]
+        statements.push(env.DB.prepare(`INSERT INTO app_settings(key,value_json,updated_at) VALUES ('financialEntries',?,CURRENT_TIMESTAMP)
+          ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=CURRENT_TIMESTAMP`).bind(JSON.stringify(mergedEntries)))
+      }
+      if (Array.isArray(body.settings.taxEntries))
+        statements.push(env.DB.prepare(`INSERT INTO app_settings(key,value_json,updated_at) VALUES ('taxEntries',?,CURRENT_TIMESTAMP)
+          ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=CURRENT_TIMESTAMP`).bind(JSON.stringify(body.settings.taxEntries)))
     }
     if (moduleAllowed(user, 'transit')) {
       if (employeeIds.length) statements.push(env.DB.prepare(`DELETE FROM recharge_events WHERE employee_id IN (${employeeIds.map(() => '?').join(',')})`).bind(...employeeIds))
