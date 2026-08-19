@@ -5943,6 +5943,8 @@ function TaxesPage({
     total = periodEntries.reduce((sum, entry) => sum + entry.amount, 0),
     paidTotal = periodEntries.filter((entry) => entry.paid).reduce((sum, entry) => sum + entry.amount, 0),
     pendingTotal = total - paidTotal,
+    companyNames = [...new Set(periodEntries.map((entry) => entry.category || "Sem empresa"))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    companyGroups = companyNames.map((company) => ({ company, rows: monthEntries.filter((entry) => (entry.category || "Sem empresa") === company), allRows: periodEntries.filter((entry) => (entry.category || "Sem empresa") === company) })),
     money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
     formatDateBr = (date: string) => date ? new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR") : "—";
   const reset = () => {
@@ -5971,8 +5973,8 @@ function TaxesPage({
       competence = capitalizeMonth(new Date(`${period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })),
       border = { top: { style: "thin" as const, color: { argb: "FF94A3B8" } }, left: { style: "thin" as const, color: { argb: "FF94A3B8" } }, bottom: { style: "thin" as const, color: { argb: "FF94A3B8" } }, right: { style: "thin" as const, color: { argb: "FF94A3B8" } } };
     workbook.creator = "Sacolão ABC";
-    sheet.columns = [{ width: 34 }, { width: 24 }, { width: 16 }, { width: 18 }, { width: 16 }, { width: 16 }, { width: 42 }];
-    sheet.mergeCells("A1:G1");
+    sheet.columns = [{ width: 36 }, { width: 17 }, { width: 18 }, { width: 16 }, { width: 16 }, { width: 42 }];
+    sheet.mergeCells("A1:F1");
     const title = sheet.getCell("A1");
     title.value = `CONTROLE DE IMPOSTOS — ${competence.toUpperCase()}`;
     title.font = { name: "Arial", size: 15, bold: true, color: { argb: "FFFFFFFF" } };
@@ -5980,22 +5982,38 @@ function TaxesPage({
     title.alignment = { horizontal: "center", vertical: "middle" };
     sheet.getRow(1).height = 28;
     sheet.addRow([]);
-    const header = sheet.addRow(["GUIA / IMPOSTO", "EMPRESA", "VENCIMENTO", "VALOR", "SITUAÇÃO", "PAGO EM", "OBSERVAÇÃO"]);
-    header.height = 23;
-    header.eachCell((cell) => { cell.font = { name: "Arial", bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } }; cell.border = border; cell.alignment = { horizontal: "center", vertical: "middle" }; });
-    periodEntries.sort((a, b) => a.dueDate.localeCompare(b.dueDate)).forEach((entry) => {
-      const row = sheet.addRow([entry.description, entry.category, new Date(`${entry.dueDate}T12:00:00`), entry.amount, entry.paid ? "Pago" : "Pendente", entry.paidAt ? new Date(`${entry.paidAt}T12:00:00`) : "", entry.note || ""]);
-      row.height = 21;
-      row.eachCell((cell, column) => { cell.border = border; cell.font = { name: "Arial", size: 10, bold: column === 1 || column === 4 }; cell.alignment = { horizontal: column === 4 ? "right" : "left", vertical: "middle" }; });
-      row.getCell(3).numFmt = "dd/mm/yyyy"; row.getCell(4).numFmt = '"R$" #,##0.00'; row.getCell(6).numFmt = "dd/mm/yyyy";
-      row.getCell(5).font = { name: "Arial", size: 10, bold: true, color: { argb: entry.paid ? "FF15803D" : "FFB45309" } };
+    const palette = ["FFE31B23", "FF92D050", "FF0E83C7", "FFF59E0B", "FF7C3AED"];
+    companyGroups.forEach((group, groupIndex) => {
+      const titleRowNumber = sheet.rowCount + 1;
+      sheet.addRow([group.company.toUpperCase()]);
+      sheet.mergeCells(titleRowNumber, 1, titleRowNumber, 6);
+      const companyTitle = sheet.getCell(titleRowNumber, 1);
+      companyTitle.font = { name: "Arial", size: 13, bold: true, color: { argb: "FFFFFFFF" } };
+      companyTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: palette[groupIndex % palette.length] } };
+      companyTitle.alignment = { horizontal: "center", vertical: "middle" };
+      companyTitle.border = border;
+      sheet.getRow(titleRowNumber).height = 24;
+      const header = sheet.addRow(["GUIA / IMPOSTO", "VENCIMENTO", "VALOR", "SITUAÇÃO", "PAGO EM", "OBSERVAÇÃO"]);
+      header.height = 23;
+      header.eachCell((cell) => { cell.font = { name: "Arial", bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } }; cell.border = border; cell.alignment = { horizontal: "center", vertical: "middle" }; });
+      group.allRows.sort((a, b) => a.dueDate.localeCompare(b.dueDate)).forEach((entry) => {
+        const row = sheet.addRow([entry.description, new Date(`${entry.dueDate}T12:00:00`), entry.amount, entry.paid ? "Pago" : "Pendente", entry.paidAt ? new Date(`${entry.paidAt}T12:00:00`) : "", entry.note || ""]);
+        row.height = 21;
+        row.eachCell((cell, column) => { cell.border = border; cell.font = { name: "Arial", size: 10, bold: column === 1 || column === 3 }; cell.alignment = { horizontal: column === 3 ? "right" : "left", vertical: "middle" }; });
+        row.getCell(2).numFmt = "dd/mm/yyyy"; row.getCell(3).numFmt = '"R$" #,##0.00'; row.getCell(5).numFmt = "dd/mm/yyyy";
+        row.getCell(4).font = { name: "Arial", size: 10, bold: true, color: { argb: entry.paid ? "FF15803D" : "FFB45309" } };
+      });
+      const companyTotal = group.allRows.reduce((sum, entry) => sum + entry.amount, 0), subtotal = sheet.addRow(["", "TOTAL DA EMPRESA", companyTotal, "", "", ""]);
+      subtotal.height = 23;
+      subtotal.eachCell((cell) => { cell.font = { name: "Arial", bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1D5DB" } }; cell.border = border; });
+      subtotal.getCell(3).numFmt = '"R$" #,##0.00';
+      sheet.addRow([]);
     });
-    const totalRow = sheet.addRow(["", "", "TOTAL DO MÊS", total, "", "", ""]);
+    const totalRow = sheet.addRow(["", "TOTAL GERAL", total, "", "", ""]);
     totalRow.height = 24;
     totalRow.eachCell((cell) => { cell.font = { name: "Arial", bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } }; cell.border = border; });
-    totalRow.getCell(4).numFmt = '"R$" #,##0.00';
-    sheet.autoFilter = { from: "A3", to: `G${Math.max(3, sheet.rowCount - 1)}` };
-    sheet.views = [{ state: "frozen", ySplit: 3, showGridLines: false }];
+    totalRow.getCell(3).numFmt = '"R$" #,##0.00';
+    sheet.views = [{ state: "frozen", ySplit: 2, showGridLines: false }];
     const bytes = await workbook.xlsx.writeBuffer(), url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })), link = document.createElement("a");
     link.href = url; link.download = `impostos-${period}.xlsx`; link.click(); URL.revokeObjectURL(url);
   };
@@ -6003,6 +6021,7 @@ function TaxesPage({
     <main className="fade-in p-4 sm:p-7">
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><SectionHead title="Impostos" sub="Controle mensal de guias, vencimentos e pagamentos" /><label className="text-xs font-semibold text-slate-500">Mês de referência<input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} className="mt-1 block rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold" /></label></div>
       <div className="mb-5 grid gap-4 sm:grid-cols-3">{[["Total do mês", total, "text-slate-900"], ["Total pago", paidTotal, "text-emerald-700"], ["Pendente", pendingTotal, "text-amber-700"]].map(([label, value, color]) => <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft"><div className="text-xs font-bold uppercase text-slate-400">{label}</div><div className={`mt-2 text-2xl font-black ${color}`}>{money(Number(value))}</div></div>)}</div>
+      {!!companyGroups.length && <div className="mb-5"><h3 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Resumo por empresa</h3><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{companyGroups.map((group) => { const companyTotal = group.allRows.reduce((sum, entry) => sum + entry.amount, 0), companyPaid = group.allRows.filter((entry) => entry.paid).reduce((sum, entry) => sum + entry.amount, 0); return <div key={group.company} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft"><div className="bg-slate-800 px-5 py-3 font-black uppercase text-white">{group.company}</div><div className="grid grid-cols-3 divide-x divide-slate-100 p-4 text-center"><div><div className="text-[10px] font-bold uppercase text-slate-400">Total</div><div className="mt-1 font-black">{money(companyTotal)}</div></div><div><div className="text-[10px] font-bold uppercase text-slate-400">Pago</div><div className="mt-1 font-black text-emerald-700">{money(companyPaid)}</div></div><div><div className="text-[10px] font-bold uppercase text-slate-400">Pendente</div><div className="mt-1 font-black text-amber-700">{money(companyTotal - companyPaid)}</div></div></div></div>; })}</div></div>}
       <form onSubmit={submit} className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
         <div className="flex items-center justify-between"><div><h3 className="font-bold">{editingId ? "Editar guia" : "Cadastrar nova guia"}</h3><p className="text-xs text-slate-400">Os valores cadastrados entram automaticamente no total do mês.</p></div>{editingId && <button type="button" onClick={reset} className="text-sm font-bold text-slate-500">Cancelar edição</button>}</div>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
