@@ -7942,9 +7942,6 @@ export default function App() {
           });
           cloudRevision.current = result.revision;
           setCloudSaveError("");
-          window.dispatchEvent(
-            new CustomEvent("abc:toast", { detail: "Alterações salvas no banco" }),
-          );
         } catch (error) {
           console.error("Falha ao salvar no D1", error);
           const message =
