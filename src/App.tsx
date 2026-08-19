@@ -3762,6 +3762,23 @@ function SettingsPage({
   );
 }
 
+function CompaniesPage({ companies, setCompanies }: { companies: string[]; setCompanies: (companies: string[]) => void }) {
+  const [name, setName] = useState("");
+  return (
+    <main className="fade-in p-4 sm:p-7">
+      <SectionHead title="Empresas" sub="Cadastre as empresas disponíveis nos lançamentos de impostos" />
+      <form onSubmit={(event) => { event.preventDefault(); const value = name.trim(); if (value && !companies.some((company) => company.toLocaleLowerCase("pt-BR") === value.toLocaleLowerCase("pt-BR"))) setCompanies([...companies, value].sort((a, b) => a.localeCompare(b, "pt-BR"))); setName(""); }} className="mb-5 flex max-w-xl gap-2">
+        <input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome da empresa" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm" />
+        <button className="rounded-xl bg-forest-700 px-4 text-sm font-semibold text-white">Adicionar</button>
+      </form>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {companies.map((company) => <div key={company} className="flex items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-soft"><div className="grid h-10 w-10 place-items-center rounded-xl bg-forest-50 text-forest-700"><ReceiptText size={19} /></div><b className="ml-3">{company}</b><button type="button" onClick={() => { if (confirm(`Excluir a empresa ${company}?`)) setCompanies(companies.filter((item) => item !== company)); }} className="ml-auto text-xs font-semibold text-red-500">Excluir</button></div>)}
+        {!companies.length && <div className="rounded-2xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-400 sm:col-span-2 lg:col-span-3">Nenhuma empresa cadastrada.</div>}
+      </div>
+    </main>
+  );
+}
+
 function ConfigurationsPage({
   positions,
   setPositions,
@@ -3777,6 +3794,8 @@ function ConfigurationsPage({
   setFinancialPeriod,
   openEmployeeForm,
   editEmployee,
+  companies,
+  setCompanies,
 }: {
   positions: string[];
   setPositions: (p: string[]) => void;
@@ -3792,10 +3811,12 @@ function ConfigurationsPage({
   setFinancialPeriod: (period: string) => void;
   openEmployeeForm: () => void;
   editEmployee: (employee: Recharge) => void;
+  companies: string[];
+  setCompanies: (companies: string[]) => void;
 }) {
-  const [tab, setTab] = useState<"geral" | "funcionarios" | "lojas" | "desligados" | "financeiro" | "perfis">(() => {
+  const [tab, setTab] = useState<"geral" | "funcionarios" | "lojas" | "empresas" | "desligados" | "financeiro" | "perfis">(() => {
     const saved = localStorage.getItem("abc_settings_tab");
-    return saved === "funcionarios" || saved === "lojas" || saved === "desligados" || saved === "financeiro" || saved === "perfis" ? saved : "geral";
+    return saved === "funcionarios" || saved === "lojas" || saved === "empresas" || saved === "desligados" || saved === "financeiro" || saved === "perfis" ? saved : "geral";
   });
   const button = (key: typeof tab, label: string, icon: ReactNode) => (
     <button
@@ -3824,6 +3845,11 @@ function ConfigurationsPage({
             "lojas",
             "Lojas",
             <Store className="mr-2 inline" size={16} />,
+          )}
+          {button(
+            "empresas",
+            "Empresas",
+            <ReceiptText className="mr-2 inline" size={16} />,
           )}
           {button(
               "desligados",
@@ -3867,6 +3893,8 @@ function ConfigurationsPage({
         />
       ) : tab === "lojas" ? (
         <StoresPage stores={stores} setStores={setStores} />
+      ) : tab === "empresas" ? (
+        <CompaniesPage companies={companies} setCompanies={setCompanies} />
       ) : tab === "perfis" ? (
         <UserProfiles stores={stores} />
       ) : tab === "financeiro" ? (
@@ -5891,11 +5919,13 @@ function FinancialRegistrations({
 function TaxesPage({
   entries,
   setEntries,
+  companies,
   period,
   setPeriod,
 }: {
   entries: TaxEntry[];
   setEntries: (entries: TaxEntry[]) => void;
+  companies: string[];
   period: string;
   setPeriod: (period: string) => void;
 }) {
@@ -5977,7 +6007,7 @@ function TaxesPage({
         <div className="flex items-center justify-between"><div><h3 className="font-bold">{editingId ? "Editar guia" : "Cadastrar nova guia"}</h3><p className="text-xs text-slate-400">Os valores cadastrados entram automaticamente no total do mês.</p></div>{editingId && <button type="button" onClick={reset} className="text-sm font-bold text-slate-500">Cancelar edição</button>}</div>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm font-semibold text-slate-600">Guia / imposto<input required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Ex.: DARF, FGTS, ICMS" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
-          <label className="text-sm font-semibold text-slate-600">Empresa<input required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Ex.: Empresa responsável" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
+          <label className="text-sm font-semibold text-slate-600">Empresa<select required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3"><option value="">Selecione a empresa</option>{[...new Set([...companies, ...entries.map((entry) => entry.category).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "pt-BR")).map((company) => <option key={company} value={company}>{company}</option>)}</select>{!companies.length && <span className="mt-1 block text-xs font-normal text-amber-600">Cadastre empresas em Configurações.</span>}</label>
           <label className="text-sm font-semibold text-slate-600">Vencimento<input required type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
           <label className="text-sm font-semibold text-slate-600">Valor<input required inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: formatMoneyInput(e.target.value) })} placeholder="0,00" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-bold" /></label>
           <label className="text-sm font-semibold text-slate-600 md:col-span-2">Observação<input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Informação opcional" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
@@ -7754,6 +7784,13 @@ export default function App() {
       return [];
     }
   });
+  const [companies, setCompanies] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("abc_tax_companies") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const [manualMode, setManualMode] = useState(false);
   const [cloudReady, setCloudReady] = useState(false);
   const [cloudSaveError, setCloudSaveError] = useState("");
@@ -7789,6 +7826,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("abc_tax_entries", JSON.stringify(taxEntries));
   }, [taxEntries]);
+  useEffect(() => {
+    localStorage.setItem("abc_tax_companies", JSON.stringify(companies));
+  }, [companies]);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("valefluxo_theme", dark ? "dark" : "light");
@@ -7834,6 +7874,11 @@ export default function App() {
               ? (state.settings.taxEntries as TaxEntry[])
               : [],
           );
+          setCompanies(
+            Array.isArray(state.settings?.taxCompanies)
+              ? (state.settings.taxCompanies as string[])
+              : [],
+          );
         }
         setCloudReady(true);
       })
@@ -7859,6 +7904,7 @@ export default function App() {
           advanceDays: Number(localStorage.getItem("valefluxo_advance") || 3),
           financialEntries,
           taxEntries,
+          taxCompanies: companies,
         },
       };
       cloudSaveQueue.current = cloudSaveQueue.current.then(async () => {
@@ -7893,6 +7939,7 @@ export default function App() {
     unregisteredReasons,
     financialEntries,
     taxEntries,
+    companies,
   ]);
   useEffect(() => {
     if (cloudEnabled())
@@ -8080,6 +8127,8 @@ export default function App() {
         setFinancialPeriod={setPeriod}
         openEmployeeForm={openNew}
         editEmployee={openEdit}
+        companies={companies}
+        setCompanies={setCompanies}
       />
     ) : module === "finance" ? (
       page === "Relatórios" ? (
@@ -8112,6 +8161,7 @@ export default function App() {
         <TaxesPage
           entries={taxEntries}
           setEntries={setTaxEntries}
+          companies={companies}
           period={period}
           setPeriod={setPeriod}
         />
