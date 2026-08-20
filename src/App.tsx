@@ -7906,7 +7906,6 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
-    await addGroupLogo(doc, 23, 13, 36);
     const left = 23,
       right = 187,
       width = right - left;
@@ -8070,6 +8069,8 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const cnpjY = showAbcLogo ? 78 : 52;
     const employeeY = showAbcLogo ? 98 : 72;
     const declarationY = showAbcLogo ? 114 : 88;
+    const dateY = showAbcLogo ? 165 : 128;
+    const signatureY = showAbcLogo ? 210 : 168;
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
@@ -8078,17 +8079,18 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.text(receiptCompany.toUpperCase(), 105, companyY, { align: "center" });
     doc.text(companyCnpjs[receiptCompany] || "CNPJ não informado", 105, cnpjY, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.text(`EU, ${receiptPerson.employee.toUpperCase()}, CPF ${receiptPerson.cpf},`, 25, employeeY);
+    doc.text(`EU, ${receiptPerson.employee.toUpperCase()}, CPF ${receiptPerson.cpf},`, 105, employeeY, { align: "center" });
     const declaration = `DECLARO QUE RECEBI da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${moneyInWords(amount)}), referente a: ${genericReference.trim()}.`;
-    doc.text(doc.splitTextToSize(declaration, 160), 25, declarationY, { lineHeightFactor: 1.5 });
+    const declarationLines = doc.splitTextToSize(declaration, 150);
+    doc.text(declarationLines, 105, declarationY, { align: "center", lineHeightFactor: 1.5 });
     const dateText = new Date(`${receiptDate}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-    doc.text(`Belo Horizonte, ${dateText}.`, 25, 165);
-    doc.line(35, 210, 175, 210);
+    doc.text(`Belo Horizonte, ${dateText}.`, 105, dateY, { align: "center" });
+    doc.line(35, signatureY, 175, signatureY);
     doc.setFont("helvetica", "bold");
-    doc.text("ASSINATURA DO(A) RECEBEDOR(A)", 105, 219, { align: "center" });
+    doc.text("ASSINATURA DO(A) RECEBEDOR(A)", 105, signatureY + 9, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.text(receiptPerson.employee, 105, 229, { align: "center" });
-    doc.text(`CPF: ${receiptPerson.cpf}`, 105, 238, { align: "center" });
+    doc.text(receiptPerson.employee, 105, signatureY + 19, { align: "center" });
+    doc.text(`CPF: ${receiptPerson.cpf}`, 105, signatureY + 28, { align: "center" });
     const safeName = receiptPerson.employee.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
     doc.save(`recibo-${safeName}-${receiptDate}.pdf`);
     window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Recibo gerado com sucesso" }));
