@@ -7848,7 +7848,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   });
   const [receiptGross, setReceiptGross] = useState("");
   const [receiptAdvance, setReceiptAdvance] = useState("");
-  const [receiptAdditions, setReceiptAdditions] = useState<Array<{ id: number; name: string; value: string }>>([]);
+  const [receiptAdditions, setReceiptAdditions] = useState<Array<{ id: number; name: string; mode: "value" | "percent"; value: string }>>([]);
   const [receiptDiscounts, setReceiptDiscounts] = useState<Array<{ id: number; name: string; mode: "value" | "percent"; value: string }>>([]);
   const [genericAmount, setGenericAmount] = useState("");
   const [genericReference, setGenericReference] = useState("");
@@ -7883,7 +7883,10 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     return Math.min(30, Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1);
   })();
   const proportionalSalary = (parseMoney(receiptGross) / 30) * salaryPeriodDays;
-  const receiptAdditionTotal = receiptAdditions.reduce((total, item) => total + parseMoney(item.value), 0);
+  const receiptAdditionTotal = receiptAdditions.reduce((total, item) => {
+    const value = parseMoney(item.value);
+    return total + (item.mode === "percent" ? (proportionalSalary * value) / 100 : value);
+  }, 0);
   const receiptDiscountTotal = receiptDiscounts.reduce((total, item) => {
     const value = parseMoney(item.value);
     return total + (item.mode === "percent" ? (proportionalSalary * value) / 100 : value);
@@ -8101,10 +8104,11 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     if (receiptKind === "salary") {
       doc.text(`+ Saldo de salário - ${salaryPeriodDays} dias`, 30, detailY); doc.text(currency(gross), 155, detailY);
       receiptAdditions.forEach((item) => {
-        const value = parseMoney(item.value);
+        const informedValue = parseMoney(item.value);
+        const value = item.mode === "percent" ? (gross * informedValue) / 100 : informedValue;
         if (!value) return;
         detailY += 7;
-        doc.text(`+ ${item.name.trim() || "Valor adicional"}`, 30, detailY); doc.text(currency(value), 155, detailY);
+        doc.text(`+ ${item.name.trim() || "Valor adicional"}${item.mode === "percent" ? ` (${informedValue.toLocaleString("pt-BR")}% do bruto)` : ""}`, 30, detailY); doc.text(currency(value), 155, detailY);
       });
       receiptDiscounts.forEach((item) => {
         detailY += 7;
@@ -8233,11 +8237,12 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
               <p className="text-xs text-blue-700 sm:col-span-3">Cálculo: salário bruto ÷ 30 × {salaryPeriodDays} dias. Um mês completo considera no máximo 30 dias.</p>
             </div>
             <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3"><div><b className="text-sm text-slate-800">Valores adicionais</b><p className="text-xs text-slate-500">Inclua comissões, horas extras, bonificações ou outros acréscimos.</p></div><button type="button" onClick={() => setReceiptAdditions([...receiptAdditions, { id: Date.now(), name: "", value: "" }])} className="flex shrink-0 items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white"><Plus size={15} />Incluir valor</button></div>
+              <div className="mb-3 flex items-center justify-between gap-3"><div><b className="text-sm text-slate-800">Valores adicionais</b><p className="text-xs text-slate-500">Inclua um valor fixo ou uma porcentagem sobre o salário proporcional.</p></div><button type="button" onClick={() => setReceiptAdditions([...receiptAdditions, { id: Date.now(), name: "", mode: "value", value: "" }])} className="flex shrink-0 items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white"><Plus size={15} />Incluir valor</button></div>
               <div className="space-y-3">
-                {receiptAdditions.map((item) => <div key={item.id} className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_220px_auto]">
+                {receiptAdditions.map((item) => <div key={item.id} className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_150px_180px_auto]">
                   <input value={item.name} onChange={(event) => setReceiptAdditions(receiptAdditions.map((addition) => addition.id === item.id ? { ...addition, name: event.target.value } : addition))} placeholder="Nome do valor adicional" className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-semibold" />
-                  <input inputMode="decimal" value={item.value} onChange={(event) => setReceiptAdditions(receiptAdditions.map((addition) => addition.id === item.id ? { ...addition, value: formatMoneyInput(event.target.value) } : addition))} placeholder="R$ 0,00" className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-bold" />
+                  <select value={item.mode} onChange={(event) => setReceiptAdditions(receiptAdditions.map((addition) => addition.id === item.id ? { ...addition, mode: event.target.value as "value" | "percent", value: "" } : addition))} className="h-11 rounded-lg border border-slate-200 px-3 text-sm"><option value="value">Valor em R$</option><option value="percent">% do bruto</option></select>
+                  <input inputMode="decimal" value={item.value} onChange={(event) => setReceiptAdditions(receiptAdditions.map((addition) => addition.id === item.id ? { ...addition, value: item.mode === "value" ? formatMoneyInput(event.target.value) : event.target.value.replace(/[^0-9,.]/g, "").slice(0, 6) } : addition))} placeholder={item.mode === "value" ? "R$ 0,00" : "0,00%"} className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-bold" />
                   <button type="button" onClick={() => setReceiptAdditions(receiptAdditions.filter((addition) => addition.id !== item.id))} className="h-11 rounded-lg px-3 text-xs font-bold text-red-500">Remover</button>
                 </div>)}
                 {!receiptAdditions.length && <p className="py-2 text-center text-xs text-slate-400">Nenhum valor adicional incluído.</p>}
