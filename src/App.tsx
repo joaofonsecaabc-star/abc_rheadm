@@ -21,6 +21,7 @@ import {
   HandCoins,
   Hourglass,
   FileSpreadsheet,
+  FileText,
   LayoutDashboard,
   Menu,
   MoreHorizontal,
@@ -357,6 +358,7 @@ const peopleNav = [
   ["Visão geral", LayoutDashboard],
   ["Ocorrências", TriangleAlert],
   ["Funcionários", Users],
+  ["Administrativo", FileText],
   ["Relatórios", FileSpreadsheet],
 ] as const;
 const transitNav = [
@@ -603,7 +605,12 @@ function Sidebar({
           Menu principal
         </div>
         <nav className="mt-3 space-y-1 px-3">
-          {nav.map(([label, Icon]) => (
+          {nav
+            .filter(
+              ([label]) =>
+                label !== "Administrativo" || signedUser?.role === "admin",
+            )
+            .map(([label, Icon]) => (
             <button
               key={label}
               onClick={() => {
@@ -620,7 +627,7 @@ function Sidebar({
                 </span>
               )}
             </button>
-          ))}
+            ))}
         </nav>
         <div className="relative mt-auto border-t border-white/10 p-3">
           <button
@@ -7724,6 +7731,175 @@ function OccurrencesPage({
   );
 }
 
+function AdministrativePage({ employees }: { employees: Recharge[] }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [employeeId, setEmployeeId] = useState("");
+  const [documentDate, setDocumentDate] = useState(today);
+  const [occurrenceDate, setOccurrenceDate] = useState(today);
+  const [reason, setReason] = useState(
+    "falta injustificada, sem apresentação de justificativa válida",
+  );
+  const selected = employees.find((employee) => String(employee.id) === employeeId);
+  const activeEmployees = employees
+    .filter((employee) => employee.active !== false)
+    .sort((a, b) => a.employee.localeCompare(b.employee, "pt-BR"));
+  const longDate = (value: string) => {
+    if (!value) return "";
+    return new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+  const generateWarning = () => {
+    if (!selected || !documentDate || !occurrenceDate || !reason.trim()) {
+      alert("Selecione o funcionário e preencha a data e o motivo.");
+      return;
+    }
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const left = 23,
+      right = 187,
+      width = right - left;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text("ADVERTÊNCIA DISCIPLINAR", 105, 24, { align: "center" });
+    doc.setFontSize(10.5);
+    doc.text("Empresa: HLM GESTÃO LTDA - CNPJ: 55.566.792/0001-58", left, 42);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Funcionário(a): ${selected.employee}`, left, 55);
+    doc.text(`CPF: ${selected.cpf || "Não informado"}`, left, 63);
+    const body =
+      `Vimos, pelo presente, aplicar-lhe advertência disciplinar pelo fato de que foi apurado que, em ${longDate(occurrenceDate)}, ocorreu ${reason.trim()}. Tal conduta representa descumprimento das obrigações inerentes ao contrato de trabalho e poderá caracterizar desídia no desempenho das funções, na forma do art. 482, letra “e”, da Consolidação das Leis do Trabalho (CLT).`;
+    const warning =
+      "Esclarecemos, ainda, que a repetição de procedimentos como este poderá ser considerada ato faltoso, passível de suspensão e, consequentemente, de dispensa por justa causa, conforme o artigo 482 da CLT.";
+    doc.setFontSize(11);
+    const bodyLines = doc.splitTextToSize(body, width);
+    doc.text(bodyLines, left, 82, { align: "justify", maxWidth: width, lineHeightFactor: 1.55 });
+    const warningY = 82 + bodyLines.length * 6.2 + 8;
+    const warningLines = doc.splitTextToSize(warning, width);
+    doc.text(warningLines, left, warningY, {
+      align: "justify",
+      maxWidth: width,
+      lineHeightFactor: 1.55,
+    });
+    const dateY = Math.max(158, warningY + warningLines.length * 6.2 + 16);
+    doc.text(`Belo Horizonte, ${longDate(documentDate)}.`, left, dateY);
+    const signatureY = 215;
+    doc.line(23, signatureY, 88, signatureY);
+    doc.line(119, signatureY, 184, signatureY);
+    doc.setFontSize(9.5);
+    doc.text("Funcionário(a)", 55.5, signatureY + 6, { align: "center" });
+    doc.text("Responsável legal (quando menor)", 151.5, signatureY + 6, {
+      align: "center",
+    });
+    doc.line(23, 239, 88, 239);
+    doc.text("Empresa", 55.5, 245, { align: "center" });
+    doc.setFontSize(9);
+    doc.text("Testemunhas", left, 260);
+    doc.line(23, 270, 88, 270);
+    doc.line(119, 270, 184, 270);
+    doc.text("Nome", 55.5, 276, { align: "center" });
+    doc.text("CPF", 151.5, 276, { align: "center" });
+    const safeName = selected.employee
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+    doc.save(`advertencia-${safeName}-${documentDate}.pdf`);
+    window.dispatchEvent(
+      new CustomEvent("abc:toast", { detail: "Advertência gerada com sucesso" }),
+    );
+  };
+  return (
+    <main className="p-4 sm:p-7">
+      <div className="mb-6">
+        <h1 className="text-2xl font-black text-slate-900">Administrativo</h1>
+        <p className="text-sm text-slate-500">
+          Gere documentos padronizados usando os dados dos funcionários.
+        </p>
+      </div>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-200 px-5 py-5 sm:px-7">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white">
+              <FileText size={21} />
+            </span>
+            <div>
+              <h2 className="text-lg font-black">Advertência disciplinar</h2>
+              <p className="text-sm text-slate-500">
+                Modelo HLM Gestão com motivo, funcionário e datas variáveis.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
+          <label className="sm:col-span-2">
+            <span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span>
+            <select
+              value={employeeId}
+              onChange={(event) => setEmployeeId(event.target.value)}
+              className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500"
+            >
+              <option value="">Selecione o funcionário</option>
+              {activeEmployees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.employee} - {employee.store}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span className="mb-2 block text-sm font-bold text-slate-700">Data da ocorrência</span>
+            <input
+              type="date"
+              value={occurrenceDate}
+              onChange={(event) => setOccurrenceDate(event.target.value)}
+              className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500"
+            />
+          </label>
+          <label>
+            <span className="mb-2 block text-sm font-bold text-slate-700">Data do documento</span>
+            <input
+              type="date"
+              value={documentDate}
+              onChange={(event) => setDocumentDate(event.target.value)}
+              className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500"
+            />
+          </label>
+          <label className="sm:col-span-2">
+            <span className="mb-2 block text-sm font-bold text-slate-700">Motivo da advertência</span>
+            <textarea
+              rows={4}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Descreva de forma objetiva o motivo da advertência"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
+            />
+          </label>
+          {selected && (
+            <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+              <b>{selected.employee}</b>
+              <span className="ml-2 text-slate-500">CPF: {selected.cpf || "não informado"}</span>
+            </div>
+          )}
+          <div className="sm:col-span-2 flex justify-end">
+            <button
+              type="button"
+              onClick={generateWarning}
+              className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white shadow-lg hover:bg-slate-700"
+            >
+              <Download size={18} />
+              Gerar advertência em PDF
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   usePopupBackgroundLock();
   const [needsSetup, setNeedsSetup] = useState(false),
@@ -8245,6 +8421,8 @@ export default function App() {
           setItems={setOccurrences}
           readOnly={sessionUser?.role === "operator"}
         />
+      ) : page === "Administrativo" && sessionUser?.role === "admin" ? (
+        <AdministrativePage employees={filteredEmployees} />
       ) : (
         <HRReports
           employees={accessibleRows.filter(
