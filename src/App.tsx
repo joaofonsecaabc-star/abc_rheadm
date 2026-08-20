@@ -530,6 +530,12 @@ const formatCnpj = (value: string) =>
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d)/, "$1/$2")
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+const genderFromRole = (role: string): Recharge["gender"] | undefined => {
+  const normalized = String(role || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /aux(?:iliar)?\.?\s*(?:de\s*)?servicos?\s*gerais|frente\s*(?:de\s*)?caixa|operador\(?a?\)?\s*(?:de\s*)?caixa|\bcaixa\b|\bsuporte\b|\batendente\b/.test(normalized)
+    ? "Feminino"
+    : undefined;
+};
 const formatMoneyInput = (value: string) => {
   const digits = value.replace(/\D/g, "").slice(0, 10);
   if (!digits) return "";
@@ -1897,7 +1903,7 @@ function EmployeeModal({
         advance: initial.advance,
         active: initial.active !== false,
         birthDate: initial.birthDate || "",
-        gender: initial.gender || "",
+        gender: initial.gender || genderFromRole(initial.role) || "",
         experienceDays:
           initial.experienceDays ||
           Number(localStorage.getItem("valefluxo_experience_days") || 90),
@@ -8769,7 +8775,7 @@ export default function App() {
     fetch("/api/infer-genders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ people: missingGender.map((employee) => ({ id: employee.id, name: employee.employee })) }),
+      body: JSON.stringify({ people: missingGender.map((employee) => ({ id: employee.id, name: employee.employee, role: employee.role })) }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -8782,6 +8788,12 @@ export default function App() {
         window.dispatchEvent(new CustomEvent("abc:toast", { detail: `Sexo preenchido automaticamente em ${inferred.size} cadastro(s)` }));
       })
       .catch((error) => console.error("Falha ao completar o sexo dos cadastros com IA", error));
+  }, [cloudReady, rows, sessionUser?.role]);
+  useEffect(() => {
+    if (!cloudReady || sessionUser?.role !== "admin") return;
+    if (!rows.some((employee) => genderFromRole(employee.role) === "Feminino" && employee.gender !== "Feminino")) return;
+    setRows((current) => current.map((employee) => genderFromRole(employee.role) === "Feminino" ? { ...employee, gender: "Feminino" } : employee));
+    window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Sexo corrigido conforme a função cadastrada" }));
   }, [cloudReady, rows, sessionUser?.role]);
   useEffect(() => {
     if (cloudEnabled())

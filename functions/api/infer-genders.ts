@@ -27,16 +27,17 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
   const people = Array.isArray(body.people)
     ? body.people
       .slice(0, 100)
-      .map((item: any) => ({ id: Number(item.id), name: String(item.name || '').trim() }))
+      .map((item: any) => ({ id: Number(item.id), name: String(item.name || '').trim(), role: String(item.role || '').trim() }))
       .filter((item: any) => item.id && item.name)
     : []
   if (!people.length) return json({ results: [] })
   if (!env.OPENAI_API_KEY && !env.AI) return json({ error: 'O recurso de IA ainda não está configurado.' }, 503)
 
   const allowedIds = new Set<number>(people.map((item: any) => item.id))
-  const prompt = `Classifique o sexo cadastral mais provável a partir dos primeiros nomes brasileiros abaixo.
+  const prompt = `Classifique o sexo cadastral mais provável a partir dos nomes brasileiros e das funções abaixo.
 Devolva SOMENTE um array JSON válido no formato [{"id":1,"gender":"Feminino"}].
 Use exclusivamente "Masculino" ou "Feminino". Preserve cada id e devolva todos os registros, sem explicações.
+Nesta empresa, as funções de Auxiliar de Serviços Gerais, Frente de Caixa, Caixa/Operadora de Caixa, Suporte e Atendente são ocupadas por mulheres e devem ser classificadas como Feminino.
 
 PESSOAS:
 ${JSON.stringify(people)}`
