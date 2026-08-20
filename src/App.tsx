@@ -7841,6 +7841,11 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   const [receiptDate, setReceiptDate] = useState(today);
   const [receiptKind, setReceiptKind] = useState<"salary" | "advance">("salary");
   const [receiptPeriod, setReceiptPeriod] = useState(today.slice(0, 7));
+  const [receiptSalaryStart, setReceiptSalaryStart] = useState(`${today.slice(0, 7)}-01`);
+  const [receiptSalaryEnd, setReceiptSalaryEnd] = useState(() => {
+    const [year, month] = today.slice(0, 7).split("-").map(Number);
+    return new Date(year, month, 0, 12).toISOString().slice(0, 10);
+  });
   const [receiptGross, setReceiptGross] = useState("");
   const [receiptAdvance, setReceiptAdvance] = useState("");
   const [receiptDiscounts, setReceiptDiscounts] = useState<Array<{ id: number; name: string; mode: "value" | "percent"; value: string }>>([]);
@@ -7865,10 +7870,24 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     : receiptManualName.trim()
       ? { employee: receiptManualName.trim(), cpf: receiptManualCpf.trim() }
       : undefined;
+  const salaryPeriodDays = (() => {
+    if (!receiptSalaryStart || !receiptSalaryEnd) return 0;
+    const start = new Date(`${receiptSalaryStart}T12:00:00`);
+    const end = new Date(`${receiptSalaryEnd}T12:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
+    return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  })();
+  const proportionalSalary = (parseMoney(receiptGross) / 30) * salaryPeriodDays;
   const receiptDiscountTotal = receiptDiscounts.reduce((total, item) => {
     const value = parseMoney(item.value);
-    return total + (item.mode === "percent" ? (parseMoney(receiptGross) * value) / 100 : value);
+    return total + (item.mode === "percent" ? (proportionalSalary * value) / 100 : value);
   }, 0);
+  useEffect(() => {
+    const [year, month] = receiptPeriod.split("-").map(Number);
+    if (!year || !month) return;
+    setReceiptSalaryStart(`${receiptPeriod}-01`);
+    setReceiptSalaryEnd(new Date(year, month, 0, 12).toISOString().slice(0, 10));
+  }, [receiptPeriod]);
   useEffect(() => {
     const entry = financialEntries.find((item) => item.employeeId === Number(receiptEmployeeId) && item.period === receiptPeriod);
     if (!entry) return;
@@ -7967,16 +7986,22 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     );
   };
   const generateReceipt = async () => {
-    const gross = parseMoney(receiptGross), discount = receiptDiscountTotal, advance = parseMoney(receiptAdvance);
+    const monthlyGross = parseMoney(receiptGross);
+    const gross = receiptKind === "salary" ? proportionalSalary : monthlyGross;
+    const discount = receiptDiscountTotal, advance = parseMoney(receiptAdvance);
     const amount = receiptKind === "salary" ? Math.max(0, gross - discount - advance) : advance;
     if (!receiptPerson || !receiptPerson.cpf || !receiptCompany || !receiptDate || !receiptPeriod || !amount) {
       alert("Selecione um funcionário ou informe nome e CPF, além da empresa, competência, data e valores.");
       return;
     }
+    if (receiptKind === "salary" && (!receiptSalaryStart || !receiptSalaryEnd || salaryPeriodDays < 1)) {
+      alert("Informe uma data inicial e uma data final válidas para calcular os dias trabalhados.");
+      return;
+    }
     const cnpj = companyCnpjs[receiptCompany] || "CNPJ não informado";
     const [year, month] = receiptPeriod.split("-").map(Number);
-    const periodStart = new Date(year, month - 1, 1, 12).toLocaleDateString("pt-BR");
-    const periodEnd = new Date(year, month, 0, 12).toLocaleDateString("pt-BR");
+    const periodStart = new Date(`${receiptSalaryStart}T12:00:00`).toLocaleDateString("pt-BR");
+    const periodEnd = new Date(`${receiptSalaryEnd}T12:00:00`).toLocaleDateString("pt-BR");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const showAbcLogo = !/\bHLM\b/i.test(receiptCompany);
     if (showAbcLogo) await addGroupLogo(doc, 79, 12, 52);
@@ -8018,8 +8043,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const currency = (value: number) => value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     let detailY = tableHeaderY + 12;
     if (receiptKind === "salary") {
-      const daysInPeriod = new Date(year, month, 0).getDate();
-      doc.text(`+ Saldo de salário - ${daysInPeriod} dias`, 30, detailY); doc.text(currency(gross), 155, detailY);
+      doc.text(`+ Saldo de salário - ${salaryPeriodDays} dias`, 30, detailY); doc.text(currency(gross), 155, detailY);
       receiptDiscounts.forEach((item) => {
         detailY += 7;
         const value = item.mode === "percent" ? (gross * parseMoney(item.value)) / 100 : parseMoney(item.value);
@@ -8132,7 +8156,15 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Competência</span><input type="month" value={receiptPeriod} onChange={(event) => setReceiptPeriod(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Data</span><input type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
           {receiptKind === "salary" && <>
+            <label><span className="mb-2 block text-sm font-bold text-slate-700">Data inicial do período trabalhado</span><input type="date" value={receiptSalaryStart} onChange={(event) => setReceiptSalaryStart(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4 font-semibold" /></label>
+            <label><span className="mb-2 block text-sm font-bold text-slate-700">Data final do período trabalhado</span><input type="date" min={receiptSalaryStart} value={receiptSalaryEnd} onChange={(event) => setReceiptSalaryEnd(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4 font-semibold" /></label>
             <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Salário bruto</span><input inputMode="decimal" value={receiptGross} onChange={(event) => setReceiptGross(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label>
+            <div className="sm:col-span-2 grid gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:grid-cols-3">
+              <div><span className="text-xs font-bold uppercase tracking-wide text-blue-600">Dias considerados</span><b className="mt-1 block text-xl text-slate-900">{salaryPeriodDays} dias</b></div>
+              <div><span className="text-xs font-bold uppercase tracking-wide text-blue-600">Valor por dia</span><b className="mt-1 block text-xl text-slate-900">{(parseMoney(receiptGross) / 30).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></div>
+              <div><span className="text-xs font-bold uppercase tracking-wide text-blue-600">Salário proporcional</span><b className="mt-1 block text-xl text-blue-700">{proportionalSalary.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></div>
+              <p className="text-xs text-blue-700 sm:col-span-3">Cálculo: salário bruto ÷ 30 × {salaryPeriodDays} dias.</p>
+            </div>
             <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="mb-3 flex items-center justify-between gap-3"><div><b className="text-sm text-slate-800">Descontos</b><p className="text-xs text-slate-500">Informe um valor fixo ou uma porcentagem sobre o salário bruto.</p></div><button type="button" onClick={() => setReceiptDiscounts([...receiptDiscounts, { id: Date.now(), name: "", mode: "value", value: "" }])} className="flex shrink-0 items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white"><Plus size={15} />Incluir desconto</button></div>
               <div className="space-y-3">
@@ -8147,7 +8179,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
             </div>
           </>}
           <label className={receiptKind === "advance" ? "sm:col-span-2" : "sm:col-span-2"}><span className="mb-2 block text-sm font-bold text-slate-700">{receiptKind === "salary" ? "Adiantamento já pago" : "Valor do adiantamento"}</span><input inputMode="decimal" value={receiptAdvance} onChange={(event) => setReceiptAdvance(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label>
-          {receiptKind === "salary" && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4"><span className="text-sm text-slate-500">Valor líquido do recibo</span><b className="mt-1 block text-xl">{Math.max(0, parseMoney(receiptGross) - receiptDiscountTotal - parseMoney(receiptAdvance)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b><span className="mt-1 block text-xs text-slate-500">Total de descontos: {receiptDiscountTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div>}
+          {receiptKind === "salary" && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4"><span className="text-sm text-slate-500">Valor líquido do recibo</span><b className="mt-1 block text-xl">{Math.max(0, proportionalSalary - receiptDiscountTotal - parseMoney(receiptAdvance)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b><span className="mt-1 block text-xs text-slate-500">Total de descontos: {receiptDiscountTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div>}
           <div className="sm:col-span-2 flex justify-end"><button type="button" onClick={generateReceipt} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white shadow-lg hover:bg-slate-700"><Download size={18} />Gerar recibo de {receiptKind === "salary" ? "salário" : "adiantamento"}</button></div>
         </div>
       </section>}
