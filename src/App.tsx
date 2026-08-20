@@ -1861,6 +1861,7 @@ function EmployeeModal({
     advance: Number(localStorage.getItem("valefluxo_advance") || 3),
     active: true,
     birthDate: "",
+    gender: "" as Recharge["gender"] | "",
     experienceDays: Number(
       localStorage.getItem("valefluxo_experience_days") || 90,
     ),
@@ -1896,6 +1897,7 @@ function EmployeeModal({
         advance: initial.advance,
         active: initial.active !== false,
         birthDate: initial.birthDate || "",
+        gender: initial.gender || "",
         experienceDays:
           initial.experienceDays ||
           Number(localStorage.getItem("valefluxo_experience_days") || 90),
@@ -2099,6 +2101,7 @@ function EmployeeModal({
               active:
                 form.employmentStatus === "Desligado" ? false : form.active,
               birthDate: form.birthDate,
+              gender: form.gender || undefined,
               experienceDays: 90,
               experienceCritical: form.experienceCritical,
               priorityTerminationDate: undefined,
@@ -2159,6 +2162,17 @@ function EmployeeModal({
                 value={form.birthDate}
                 onChange={(e) => set("birthDate", e.target.value)}
               />
+            </Field>
+            <Field label="Sexo">
+              <select
+                required
+                value={form.gender}
+                onChange={(e) => set("gender", e.target.value as Recharge["gender"])}
+              >
+                <option value="">Selecione</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Feminino">Feminino</option>
+              </select>
             </Field>
           </div>
           </section>
@@ -3267,6 +3281,7 @@ function EmployeeDetailsModal({ employee, close }: { employee: Recharge; close: 
     ["Loja", employee.store], ["Função", employee.role],
     ["Data de admissão", employee.hiredAt ? formatDate(employee.hiredAt) : "Não informada"],
     ["Data de nascimento", employee.birthDate ? formatDate(employee.birthDate) : "Não informada"],
+    ["Sexo", employee.gender || "Não informado"],
     ["Situação", isDismissalPending(employee) ? "Desligamento em andamento" : employee.employmentStatus || "Ativo"],
     ["Carteira", employee.formalEmployment === false ? "Sem carteira assinada" : "Carteira assinada"],
     ["Benefício", benefit], ["Escala", employee.scheduleType || "Personalizada"],
@@ -7927,6 +7942,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   const [warningPersonMode, setWarningPersonMode] = useState<"registered" | "manual">("registered");
   const [warningManualName, setWarningManualName] = useState("");
   const [warningManualCpf, setWarningManualCpf] = useState("");
+  const [warningManualGender, setWarningManualGender] = useState<Recharge["gender"] | "">("");
   const [receiptEmployeeId, setReceiptEmployeeId] = useState("");
   const [receiptPersonMode, setReceiptPersonMode] = useState<"registered" | "manual">("registered");
   const [receiptManualName, setReceiptManualName] = useState("");
@@ -7960,7 +7976,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   const warningPerson = warningPersonMode === "registered"
     ? selected
     : warningManualName.trim()
-      ? { employee: warningManualName.trim(), cpf: warningManualCpf.trim() }
+      ? { employee: warningManualName.trim(), cpf: warningManualCpf.trim(), gender: warningManualGender || undefined }
       : undefined;
   const receiptPerson = receiptPersonMode === "registered"
     ? receiptEmployee
@@ -8029,7 +8045,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       const response = await fetch("/api/warning-reason", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: warningSummary.trim() }),
+        body: JSON.stringify({ description: warningSummary.trim(), gender: warningPerson?.gender }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.reason) throw new Error(data.error || "Não foi possível gerar o texto.");
@@ -8090,14 +8106,20 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setFont("helvetica", "normal");
     doc.text(`Pessoa advertida: ${warningPerson.employee}`, left, 75);
     doc.text(`CPF: ${warningPerson.cpf}`, left, 83);
+    const collaboratorReference = warningPerson.gender === "Feminino"
+      ? "a colaboradora mencionada"
+      : warningPerson.gender === "Masculino"
+        ? "o colaborador mencionado"
+        : "a pessoa mencionada";
     const cleanedReason = reason
       .trim()
       .replace(/\s+/g, " ")
       .replace(/[.]+$/, "")
       .replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, "")
       .replace(/\bna data informada[,]?\s*/gi, "")
-      .replace(/\b(?:um|uma|o|a)\s+(?:funcionári[oa]|colaborador[oa])(?:\s+mencionad[oa])?\b/gi, "a pessoa mencionada")
-      .replace(/\b(?:funcionári[oa]|colaborador[oa])\s+mencionad[oa]\b/gi, "a pessoa mencionada");
+      .replace(/\b(?:um|uma|o|a)\s+(?:funcionári[oa]|colaborador[oa])(?:\s+mencionad[oa])?\b/gi, collaboratorReference)
+      .replace(/\b(?:funcionári[oa]|colaborador[oa])\s+mencionad[oa]\b/gi, collaboratorReference)
+      .replace(/\ba pessoa mencionada\b/gi, collaboratorReference);
     const reasonClause = cleanedReason
       ? cleanedReason.charAt(0).toLowerCase() + cleanedReason.slice(1)
       : "houve a ocorrência informada";
@@ -8413,6 +8435,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
             <>
               <label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={warningManualName} onChange={(event) => setWarningManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
               <label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={warningManualCpf} onChange={(event) => setWarningManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
+              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Sexo</span><select value={warningManualGender} onChange={(event) => setWarningManualGender(event.target.value as Recharge["gender"] | "")} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4"><option value="">Selecione</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></select></label>
             </>
           )}
           <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">2. Ocorrência</b><p className="text-xs text-slate-500">Informe as datas e descreva objetivamente o que aconteceu.</p></div>
@@ -8589,6 +8612,7 @@ export default function App() {
   const [cloudSaveError, setCloudSaveError] = useState("");
   const cloudRevision = useRef(0);
   const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const genderInferenceStarted = useRef(false);
   useEffect(() => {
     localStorage.setItem(
       "valefluxo_db_v3",
@@ -8737,6 +8761,28 @@ export default function App() {
     taxEntries,
     companyCnpjs,
   ]);
+  useEffect(() => {
+    if (!cloudReady || !cloudEnabled() || sessionUser?.role !== "admin" || genderInferenceStarted.current) return;
+    const missingGender = rows.filter((employee) => !employee.gender);
+    if (!missingGender.length) return;
+    genderInferenceStarted.current = true;
+    fetch("/api/infer-genders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ people: missingGender.map((employee) => ({ id: employee.id, name: employee.employee })) }),
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Não foi possível completar os sexos dos cadastros.");
+        const inferred = new Map<number, Recharge["gender"]>(
+          (Array.isArray(data.results) ? data.results : []).map((item: { id: number; gender: Recharge["gender"] }) => [Number(item.id), item.gender]),
+        );
+        if (!inferred.size) return;
+        setRows((current) => current.map((employee) => employee.gender ? employee : { ...employee, gender: inferred.get(employee.id) || employee.gender }));
+        window.dispatchEvent(new CustomEvent("abc:toast", { detail: `Sexo preenchido automaticamente em ${inferred.size} cadastro(s)` }));
+      })
+      .catch((error) => console.error("Falha ao completar o sexo dos cadastros com IA", error));
+  }, [cloudReady, rows, sessionUser?.role]);
   useEffect(() => {
     if (cloudEnabled())
       cloudCurrentUser()
