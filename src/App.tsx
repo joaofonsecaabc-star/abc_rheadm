@@ -8082,12 +8082,14 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
-    doc.text("ADVERTÊNCIA DISCIPLINAR", 105, 48, { align: "center" });
     doc.setFontSize(10.5);
-    doc.text("Empresa: HLM GESTÃO LTDA - CNPJ: 55.566.792/0001-58", left, 60);
+    doc.text("55.566.792/0001-58", 105, 47, { align: "center" });
+    doc.setFontSize(15);
+    doc.text("ADVERTÊNCIA DISCIPLINAR", 105, 61, { align: "center" });
+    doc.setFontSize(10.5);
     doc.setFont("helvetica", "normal");
-    doc.text(`Funcionário(a): ${warningPerson.employee}`, left, 72);
-    doc.text(`CPF: ${warningPerson.cpf}`, left, 80);
+    doc.text(`Funcionário(a): ${warningPerson.employee}`, left, 75);
+    doc.text(`CPF: ${warningPerson.cpf}`, left, 83);
     const cleanedReason = reason
       .trim()
       .replace(/\s+/g, " ")
@@ -8108,8 +8110,8 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       "Esclarecemos, ainda, que a repetição de procedimentos como este poderá ser considerada ato faltoso, passível de suspensão e, consequentemente, de dispensa por justa causa, conforme o artigo 482 da CLT.";
     doc.setFontSize(11);
     const bodyLines = doc.splitTextToSize(body, width);
-    doc.text(bodyLines, left, 96, { align: "justify", maxWidth: width, lineHeightFactor: 1.55 });
-    const warningY = 96 + bodyLines.length * 6.2 + 8;
+    doc.text(bodyLines, left, 99, { align: "justify", maxWidth: width, lineHeightFactor: 1.55 });
+    const warningY = 99 + bodyLines.length * 6.2 + 8;
     const warningLines = doc.splitTextToSize(warning, width);
     doc.text(warningLines, left, warningY, {
       align: "justify",
@@ -8157,6 +8159,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const periodStart = new Date(`${receiptSalaryStart}T12:00:00`).toLocaleDateString("pt-BR");
     const periodEnd = new Date(`${receiptSalaryEnd}T12:00:00`).toLocaleDateString("pt-BR");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const isHlmCompany = /\bHLM\b/i.test(receiptCompany);
     const hasCompanyLogo = await addCompanyLogo(doc, receiptCompany, 79, 8, 52);
     const companyY = hasCompanyLogo ? 45 : 22;
     const cnpjY = hasCompanyLogo ? 53 : 30;
@@ -8168,7 +8171,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text(receiptCompany.toUpperCase(), 105, companyY, { align: "center" });
+    if (!isHlmCompany) doc.text(receiptCompany.toUpperCase(), 105, companyY, { align: "center" });
     doc.text(cnpj, 105, cnpjY, { align: "center" });
     doc.line(30, dividerY, 180, dividerY);
     doc.setFontSize(16);
@@ -8252,6 +8255,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const isHlmCompany = /\bHLM\b/i.test(receiptCompany);
     const hasCompanyLogo = await addCompanyLogo(doc, receiptCompany, 79, 8, 52);
     const titleY = hasCompanyLogo ? 54 : 28;
     const companyY = hasCompanyLogo ? 70 : 44;
@@ -8265,7 +8269,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setFontSize(18);
     doc.text("RECIBO", 105, titleY, { align: "center" });
     doc.setFontSize(11);
-    doc.text(receiptCompany.toUpperCase(), 105, companyY, { align: "center" });
+    if (!isHlmCompany) doc.text(receiptCompany.toUpperCase(), 105, companyY, { align: "center" });
     doc.text(companyCnpjs[receiptCompany] || "CNPJ não informado", 105, cnpjY, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.text(`EU, ${receiptPerson.employee.toUpperCase()}, CPF ${receiptPerson.cpf},`, 105, employeeY, { align: "center" });
