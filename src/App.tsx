@@ -7824,7 +7824,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   const today = new Date().toISOString().slice(0, 10);
   const [employeeId, setEmployeeId] = useState("");
   const [documentDate, setDocumentDate] = useState(today);
-  const [occurrenceDate, setOccurrenceDate] = useState(today);
+  const [occurredDates, setOccurredDates] = useState<string[]>([today]);
   const [reason, setReason] = useState(
     "falta injustificada, sem apresentação de justificativa válida",
   );
@@ -7972,7 +7972,8 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     }
   };
   const generateWarning = async () => {
-    if (!warningPerson || !warningPerson.cpf || !documentDate || !occurrenceDate || !reason.trim()) {
+    const validOccurredDates = [...new Set(occurredDates.filter(Boolean))].sort();
+    if (!warningPerson || !warningPerson.cpf || !documentDate || !validOccurredDates.length || !reason.trim()) {
       alert("Selecione um funcionário ou informe nome e CPF, além das datas e do motivo.");
       return;
     }
@@ -7999,8 +8000,12 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const reasonClause = cleanedReason
       ? cleanedReason.charAt(0).toLowerCase() + cleanedReason.slice(1)
       : "houve a ocorrência informada";
+    const occurredDatesText = validOccurredDates.map((date) => longDate(date));
+    const occurredWhen = occurredDatesText.length === 1
+      ? `no dia ${occurredDatesText[0]}`
+      : `nos dias ${occurredDatesText.slice(0, -1).join(", ")} e ${occurredDatesText.at(-1)}`;
     const body =
-      `Vimos, pelo presente, aplicar-lhe advertência disciplinar, pois foi apurado que, em ${longDate(occurrenceDate)}, ${reasonClause}. Tal conduta representa descumprimento das obrigações inerentes ao contrato de trabalho e poderá caracterizar desídia no desempenho das funções, na forma do art. 482, letra “e”, da Consolidação das Leis do Trabalho (CLT).`;
+      `Vimos, pelo presente, aplicar-lhe advertência disciplinar, pois foi apurado que, ${occurredWhen}, ${reasonClause}. Tal conduta representa descumprimento das obrigações inerentes ao contrato de trabalho e poderá caracterizar desídia no desempenho das funções, na forma do art. 482, letra “e”, da Consolidação das Leis do Trabalho (CLT).`;
     const warning =
       "Esclarecemos, ainda, que a repetição de procedimentos como este poderá ser considerada ato faltoso, passível de suspensão e, consequentemente, de dispensa por justa causa, conforme o artigo 482 da CLT.";
     doc.setFontSize(11);
@@ -8312,23 +8317,19 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           )}
           <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">2. Ocorrência</b><p className="text-xs text-slate-500">Informe as datas e descreva objetivamente o que aconteceu.</p></div>
           <label>
-            <span className="mb-2 block text-sm font-bold text-slate-700">Data da ocorrência</span>
-            <input
-              type="date"
-              value={occurrenceDate}
-              onChange={(event) => setOccurrenceDate(event.target.value)}
-              className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500"
-            />
-          </label>
-          <label>
-            <span className="mb-2 block text-sm font-bold text-slate-700">Data do documento</span>
+            <span className="mb-2 block text-sm font-bold text-slate-700">Data da ocorrência (aplicação)</span>
             <input
               type="date"
               value={documentDate}
               onChange={(event) => setDocumentDate(event.target.value)}
-              className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500"
+              className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 outline-none shadow-sm focus:border-slate-500"
             />
+            <span className="mt-1.5 block text-xs text-slate-500">Dia em que a advertência foi aplicada.</span>
           </label>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-2 flex items-center justify-between gap-3"><div><b className="text-sm text-slate-700">Data(s) do ocorrido</b><p className="text-xs text-slate-500">Dias em que o fato aconteceu.</p></div><button type="button" onClick={() => setOccurredDates([...occurredDates, ""])} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white"><Plus size={14} />Adicionar dia</button></div>
+            <div className="space-y-2">{occurredDates.map((date, index) => <div key={index} className="flex gap-2"><input type="date" value={date} onChange={(event) => setOccurredDates(occurredDates.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} className="h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 font-semibold outline-none focus:border-slate-500" /><button type="button" disabled={occurredDates.length === 1} onClick={() => setOccurredDates(occurredDates.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remover data" className="grid h-11 w-11 place-items-center rounded-lg border border-slate-200 bg-white text-red-500 disabled:cursor-not-allowed disabled:opacity-30"><X size={17} /></button></div>)}</div>
+          </div>
           <label className="sm:col-span-2">
             <span className="mb-2 block text-sm font-bold text-slate-700">Conte resumidamente o que aconteceu</span>
             <div>
