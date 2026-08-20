@@ -382,6 +382,14 @@ const formatCpf = (value: string) =>
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+const formatCnpj = (value: string) =>
+  value
+    .replace(/\D/g, "")
+    .slice(0, 14)
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 const formatMoneyInput = (value: string) => {
   const digits = value.replace(/\D/g, "").slice(0, 10);
   if (!digits) return "";
@@ -3769,17 +3777,18 @@ function SettingsPage({
   );
 }
 
-function CompaniesPage({ companies, setCompanies }: { companies: string[]; setCompanies: (companies: string[]) => void }) {
-  const [name, setName] = useState("");
+function CompaniesPage({ companies, setCompanies, companyCnpjs, setCompanyCnpjs }: { companies: string[]; setCompanies: (companies: string[]) => void; companyCnpjs: Record<string, string>; setCompanyCnpjs: (values: Record<string, string>) => void }) {
+  const [name, setName] = useState(""), [cnpj, setCnpj] = useState("");
   return (
     <main className="fade-in p-4 sm:p-7">
       <SectionHead title="Empresas" sub="Cadastre as empresas disponíveis nos lançamentos de impostos" />
-      <form onSubmit={(event) => { event.preventDefault(); const value = name.trim(); if (value && !companies.some((company) => company.toLocaleLowerCase("pt-BR") === value.toLocaleLowerCase("pt-BR"))) setCompanies([...companies, value].sort((a, b) => a.localeCompare(b, "pt-BR"))); setName(""); }} className="mb-5 flex max-w-xl gap-2">
+      <form onSubmit={(event) => { event.preventDefault(); const value = name.trim(); if (!value) return; if (!companies.some((company) => company.toLocaleLowerCase("pt-BR") === value.toLocaleLowerCase("pt-BR"))) setCompanies([...companies, value].sort((a, b) => a.localeCompare(b, "pt-BR"))); setCompanyCnpjs({ ...companyCnpjs, [value]: cnpj }); setName(""); setCnpj(""); }} className="mb-5 grid max-w-3xl gap-2 sm:grid-cols-[1fr_230px_auto]">
         <input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome da empresa" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm" />
+        <input required value={cnpj} onChange={(event) => setCnpj(formatCnpj(event.target.value))} placeholder="00.000.000/0000-00" className="min-w-0 rounded-xl border border-slate-200 px-4 py-2.5 text-sm" />
         <button className="rounded-xl bg-forest-700 px-4 text-sm font-semibold text-white">Adicionar</button>
       </form>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {companies.map((company) => <div key={company} className="flex items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-soft"><div className="grid h-10 w-10 place-items-center rounded-xl bg-forest-50 text-forest-700"><ReceiptText size={19} /></div><b className="ml-3">{company}</b><button type="button" onClick={() => { if (confirm(`Excluir a empresa ${company}?`)) setCompanies(companies.filter((item) => item !== company)); }} className="ml-auto text-xs font-semibold text-red-500">Excluir</button></div>)}
+        {companies.map((company) => <div key={company} className="flex items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-soft"><div className="grid h-10 w-10 place-items-center rounded-xl bg-forest-50 text-forest-700"><ReceiptText size={19} /></div><div className="ml-3 min-w-0"><b className="block truncate">{company}</b><span className="text-xs text-slate-500">CNPJ: {companyCnpjs[company] || "não informado"}</span></div><button type="button" onClick={() => { const next = prompt(`CNPJ de ${company}`, companyCnpjs[company] || ""); if (next !== null) setCompanyCnpjs({ ...companyCnpjs, [company]: formatCnpj(next) }); }} className="ml-auto mr-3 text-xs font-semibold text-slate-600">Editar</button><button type="button" onClick={() => { if (confirm(`Excluir a empresa ${company}?`)) { setCompanies(companies.filter((item) => item !== company)); const next = { ...companyCnpjs }; delete next[company]; setCompanyCnpjs(next); } }} className="text-xs font-semibold text-red-500">Excluir</button></div>)}
         {!companies.length && <div className="rounded-2xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-400 sm:col-span-2 lg:col-span-3">Nenhuma empresa cadastrada.</div>}
       </div>
     </main>
@@ -3803,6 +3812,8 @@ function ConfigurationsPage({
   editEmployee,
   companies,
   setCompanies,
+  companyCnpjs,
+  setCompanyCnpjs,
 }: {
   positions: string[];
   setPositions: (p: string[]) => void;
@@ -3820,6 +3831,8 @@ function ConfigurationsPage({
   editEmployee: (employee: Recharge) => void;
   companies: string[];
   setCompanies: (companies: string[]) => void;
+  companyCnpjs: Record<string, string>;
+  setCompanyCnpjs: (values: Record<string, string>) => void;
 }) {
   const [tab, setTab] = useState<"geral" | "funcionarios" | "lojas" | "empresas" | "desligados" | "financeiro" | "perfis">(() => {
     const saved = localStorage.getItem("abc_settings_tab");
@@ -3901,7 +3914,7 @@ function ConfigurationsPage({
       ) : tab === "lojas" ? (
         <StoresPage stores={stores} setStores={setStores} />
       ) : tab === "empresas" ? (
-        <CompaniesPage companies={companies} setCompanies={setCompanies} />
+        <CompaniesPage companies={companies} setCompanies={setCompanies} companyCnpjs={companyCnpjs} setCompanyCnpjs={setCompanyCnpjs} />
       ) : tab === "perfis" ? (
         <UserProfiles stores={stores} />
       ) : tab === "financeiro" ? (
@@ -7731,7 +7744,7 @@ function OccurrencesPage({
   );
 }
 
-function AdministrativePage({ employees }: { employees: Recharge[] }) {
+function AdministrativePage({ employees, companies, companyCnpjs }: { employees: Recharge[]; companies: string[]; companyCnpjs: Record<string, string> }) {
   const today = new Date().toISOString().slice(0, 10);
   const [employeeId, setEmployeeId] = useState("");
   const [documentDate, setDocumentDate] = useState(today);
@@ -7739,10 +7752,16 @@ function AdministrativePage({ employees }: { employees: Recharge[] }) {
   const [reason, setReason] = useState(
     "falta injustificada, sem apresentação de justificativa válida",
   );
+  const [receiptEmployeeId, setReceiptEmployeeId] = useState("");
+  const [receiptCompany, setReceiptCompany] = useState("");
+  const [receiptDate, setReceiptDate] = useState(today);
+  const [receiptAmount, setReceiptAmount] = useState("");
+  const [receiptReference, setReceiptReference] = useState("");
   const selected = employees.find((employee) => String(employee.id) === employeeId);
   const activeEmployees = employees
     .filter((employee) => employee.active !== false)
     .sort((a, b) => a.employee.localeCompare(b.employee, "pt-BR"));
+  const receiptEmployee = employees.find((employee) => String(employee.id) === receiptEmployeeId);
   const longDate = (value: string) => {
     if (!value) return "";
     return new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
@@ -7812,6 +7831,48 @@ function AdministrativePage({ employees }: { employees: Recharge[] }) {
       new CustomEvent("abc:toast", { detail: "Advertência gerada com sucesso" }),
     );
   };
+  const generateReceipt = () => {
+    const amount = parseMoney(receiptAmount);
+    if (!receiptEmployee || !receiptCompany || !receiptDate || !amount || !receiptReference.trim()) {
+      alert("Preencha funcionário, empresa, data, valor e referência do recibo.");
+      return;
+    }
+    const cnpj = companyCnpjs[receiptCompany] || "CNPJ não informado";
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("RECIBO", 105, 35, { align: "center" });
+    doc.setFontSize(12);
+    doc.roundedRect(22, 48, 166, 112, 2, 2);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Eu, ${receiptEmployee.employee}`, 30, 65);
+    doc.text(`CPF: ${receiptEmployee.cpf || "não informado"}`, 30, 75);
+    doc.text("declaro que recebi da empresa:", 30, 91);
+    doc.setFont("helvetica", "bold");
+    doc.text(receiptCompany, 30, 102);
+    doc.setFont("helvetica", "normal");
+    doc.text(`CNPJ: ${cnpj}`, 30, 112);
+    doc.text("a importância de:", 30, 128);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), 30, 140);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    const referenceLines = doc.splitTextToSize(`Referente a: ${receiptReference.trim()}`, 145);
+    doc.text(referenceLines, 30, 151);
+    const receiptDateText = new Date(`${receiptDate}T12:00:00`).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+    doc.text(`Belo Horizonte, ${receiptDateText}.`, 30, 184);
+    doc.line(55, 220, 155, 220);
+    doc.text("Assinatura e CPF", 105, 227, { align: "center" });
+    const safeName = receiptEmployee.employee.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    doc.save(`recibo-${safeName}-${receiptDate}.pdf`);
+    window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Recibo gerado com sucesso" }));
+  };
   return (
     <main className="p-4 sm:p-7">
       <div className="mb-6">
@@ -7820,6 +7881,22 @@ function AdministrativePage({ employees }: { employees: Recharge[] }) {
           Gere documentos padronizados usando os dados dos funcionários.
         </p>
       </div>
+      <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-200 px-5 py-5 sm:px-7">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white"><ReceiptText size={21} /></span>
+            <div><h2 className="text-lg font-black">Recibo</h2><p className="text-sm text-slate-500">Preencha os dados e gere o recibo conforme o modelo enviado.</p></div>
+          </div>
+        </div>
+        <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
+          <label><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee} - {employee.store}</option>)}</select></label>
+          <label><span className="mb-2 block text-sm font-bold text-slate-700">Empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione a empresa</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select>{!companies.length && <span className="mt-1 block text-xs text-amber-600">Cadastre a empresa e o CNPJ em Configurações → Empresas.</span>}</label>
+          <label><span className="mb-2 block text-sm font-bold text-slate-700">Data</span><input type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
+          <label><span className="mb-2 block text-sm font-bold text-slate-700">Valor</span><input inputMode="decimal" value={receiptAmount} onChange={(event) => setReceiptAmount(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label>
+          <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Referente a</span><textarea rows={3} value={receiptReference} onChange={(event) => setReceiptReference(event.target.value)} placeholder="Ex.: pagamento de prestação de serviço, ajuda de custo..." className="w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
+          <div className="sm:col-span-2 flex justify-end"><button type="button" onClick={generateReceipt} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white shadow-lg hover:bg-slate-700"><Download size={18} />Gerar recibo em PDF</button></div>
+        </div>
+      </section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div className="border-b border-slate-200 px-5 py-5 sm:px-7">
           <div className="flex items-center gap-3">
@@ -7994,6 +8071,13 @@ export default function App() {
       return [];
     }
   });
+  const [companyCnpjs, setCompanyCnpjs] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("abc_company_cnpjs") || "{}");
+    } catch {
+      return {};
+    }
+  });
   const [manualMode, setManualMode] = useState(false);
   const [cloudReady, setCloudReady] = useState(false);
   const [cloudSaveError, setCloudSaveError] = useState("");
@@ -8032,6 +8116,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("abc_tax_companies", JSON.stringify(companies));
   }, [companies]);
+  useEffect(() => {
+    localStorage.setItem("abc_company_cnpjs", JSON.stringify(companyCnpjs));
+  }, [companyCnpjs]);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("valefluxo_theme", dark ? "dark" : "light");
@@ -8082,6 +8169,11 @@ export default function App() {
               ? (state.settings.taxCompanies as string[])
               : [],
           );
+          setCompanyCnpjs(
+            state.settings?.companyCnpjs && typeof state.settings.companyCnpjs === "object"
+              ? (state.settings.companyCnpjs as Record<string, string>)
+              : {},
+          );
         }
         setCloudReady(true);
       })
@@ -8108,6 +8200,7 @@ export default function App() {
           financialEntries,
           taxEntries,
           taxCompanies: companies,
+          companyCnpjs,
         },
       };
       cloudSaveQueue.current = cloudSaveQueue.current.then(async () => {
@@ -8140,6 +8233,7 @@ export default function App() {
     financialEntries,
     taxEntries,
     companies,
+    companyCnpjs,
   ]);
   useEffect(() => {
     if (cloudEnabled())
@@ -8329,6 +8423,8 @@ export default function App() {
         editEmployee={openEdit}
         companies={companies}
         setCompanies={setCompanies}
+        companyCnpjs={companyCnpjs}
+        setCompanyCnpjs={setCompanyCnpjs}
       />
     ) : module === "finance" ? (
       page === "Relatórios" ? (
@@ -8422,7 +8518,7 @@ export default function App() {
           readOnly={sessionUser?.role === "operator"}
         />
       ) : page === "Administrativo" && sessionUser?.role === "admin" ? (
-        <AdministrativePage employees={filteredEmployees} />
+        <AdministrativePage employees={filteredEmployees} companies={companies} companyCnpjs={companyCnpjs} />
       ) : (
         <HRReports
           employees={accessibleRows.filter(
