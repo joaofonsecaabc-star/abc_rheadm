@@ -8088,7 +8088,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.text("ADVERTÊNCIA DISCIPLINAR", 105, 61, { align: "center" });
     doc.setFontSize(10.5);
     doc.setFont("helvetica", "normal");
-    doc.text(`Funcionário(a): ${warningPerson.employee}`, left, 75);
+    doc.text(`Pessoa advertida: ${warningPerson.employee}`, left, 75);
     doc.text(`CPF: ${warningPerson.cpf}`, left, 83);
     const cleanedReason = reason
       .trim()
@@ -8096,7 +8096,8 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       .replace(/[.]+$/, "")
       .replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, "")
       .replace(/\bna data informada[,]?\s*/gi, "")
-      .replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, "o funcionário mencionado");
+      .replace(/\b(?:um|uma|o|a)\s+(?:funcionári[oa]|colaborador[oa])(?:\s+mencionad[oa])?\b/gi, "a pessoa mencionada")
+      .replace(/\b(?:funcionári[oa]|colaborador[oa])\s+mencionad[oa]\b/gi, "a pessoa mencionada");
     const reasonClause = cleanedReason
       ? cleanedReason.charAt(0).toLowerCase() + cleanedReason.slice(1)
       : "houve a ocorrência informada";
@@ -8124,7 +8125,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.line(23, signatureY, 88, signatureY);
     doc.line(119, signatureY, 184, signatureY);
     doc.setFontSize(9.5);
-    doc.text("Funcionário(a)", 55.5, signatureY + 6, { align: "center" });
+    doc.text("Pessoa advertida", 55.5, signatureY + 6, { align: "center" });
     doc.text("Responsável legal (quando menor)", 151.5, signatureY + 6, {
       align: "center",
     });
