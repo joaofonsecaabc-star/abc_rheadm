@@ -7877,7 +7877,9 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const start = new Date(`${receiptSalaryStart}T12:00:00`);
     const end = new Date(`${receiptSalaryEnd}T12:00:00`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
-    return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    // Para fins de salário mensal, a competência integral equivale a 30 dias,
+    // inclusive nos meses civis com 31 dias.
+    return Math.min(30, Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1);
   })();
   const proportionalSalary = (parseMoney(receiptGross) / 30) * salaryPeriodDays;
   const receiptDiscountTotal = receiptDiscounts.reduce((total, item) => {
@@ -8202,7 +8204,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
               <div><span className="text-xs font-bold uppercase tracking-wide text-blue-600">Dias considerados</span><b className="mt-1 block text-xl text-slate-900">{salaryPeriodDays} dias</b></div>
               <div><span className="text-xs font-bold uppercase tracking-wide text-blue-600">Valor por dia</span><b className="mt-1 block text-xl text-slate-900">{(parseMoney(receiptGross) / 30).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></div>
               <div><span className="text-xs font-bold uppercase tracking-wide text-blue-600">Salário proporcional</span><b className="mt-1 block text-xl text-blue-700">{proportionalSalary.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></div>
-              <p className="text-xs text-blue-700 sm:col-span-3">Cálculo: salário bruto ÷ 30 × {salaryPeriodDays} dias.</p>
+              <p className="text-xs text-blue-700 sm:col-span-3">Cálculo: salário bruto ÷ 30 × {salaryPeriodDays} dias. Um mês completo considera no máximo 30 dias.</p>
             </div>
             <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="mb-3 flex items-center justify-between gap-3"><div><b className="text-sm text-slate-800">Descontos</b><p className="text-xs text-slate-500">Informe um valor fixo ou uma porcentagem sobre o salário bruto.</p></div><button type="button" onClick={() => setReceiptDiscounts([...receiptDiscounts, { id: Date.now(), name: "", mode: "value", value: "" }])} className="flex shrink-0 items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white"><Plus size={15} />Incluir desconto</button></div>
