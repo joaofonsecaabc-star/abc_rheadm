@@ -7756,7 +7756,7 @@ function OccurrencesPage({
   );
 }
 
-function AdministrativePage({ employees, companies, companyCnpjs }: { employees: Recharge[]; companies: string[]; companyCnpjs: Record<string, string> }) {
+function AdministrativePage({ employees, companies, companyCnpjs, financialEntries }: { employees: Recharge[]; companies: string[]; companyCnpjs: Record<string, string>; financialEntries: FinancialEntry[] }) {
   const today = new Date().toISOString().slice(0, 10);
   const [employeeId, setEmployeeId] = useState("");
   const [documentDate, setDocumentDate] = useState(today);
@@ -7767,13 +7767,22 @@ function AdministrativePage({ employees, companies, companyCnpjs }: { employees:
   const [receiptEmployeeId, setReceiptEmployeeId] = useState("");
   const [receiptCompany, setReceiptCompany] = useState("");
   const [receiptDate, setReceiptDate] = useState(today);
-  const [receiptAmount, setReceiptAmount] = useState("");
-  const [receiptReference, setReceiptReference] = useState("");
+  const [receiptKind, setReceiptKind] = useState<"salary" | "advance">("salary");
+  const [receiptPeriod, setReceiptPeriod] = useState(today.slice(0, 7));
+  const [receiptGross, setReceiptGross] = useState("");
+  const [receiptDiscount, setReceiptDiscount] = useState("");
+  const [receiptAdvance, setReceiptAdvance] = useState("");
   const selected = employees.find((employee) => String(employee.id) === employeeId);
   const activeEmployees = employees
     .filter((employee) => employee.active !== false)
     .sort((a, b) => a.employee.localeCompare(b.employee, "pt-BR"));
   const receiptEmployee = employees.find((employee) => String(employee.id) === receiptEmployeeId);
+  useEffect(() => {
+    const entry = financialEntries.find((item) => item.employeeId === Number(receiptEmployeeId) && item.period === receiptPeriod);
+    if (!entry) return;
+    setReceiptGross(formatMoneyInput(String(Math.round(Number(entry.salary || 0) * 100))));
+    setReceiptAdvance(formatMoneyInput(String(Math.round(Number(entry.advance || 0) * 100))));
+  }, [receiptEmployeeId, receiptPeriod, financialEntries]);
   const longDate = (value: string) => {
     if (!value) return "";
     return new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
@@ -7844,45 +7853,59 @@ function AdministrativePage({ employees, companies, companyCnpjs }: { employees:
     );
   };
   const generateReceipt = () => {
-    const amount = parseMoney(receiptAmount);
-    if (!receiptEmployee || !receiptCompany || !receiptDate || !amount || !receiptReference.trim()) {
-      alert("Preencha funcionário, empresa, data, valor e referência do recibo.");
+    const gross = parseMoney(receiptGross), discount = parseMoney(receiptDiscount), advance = parseMoney(receiptAdvance);
+    const amount = receiptKind === "salary" ? Math.max(0, gross - discount - advance) : advance;
+    if (!receiptEmployee || !receiptCompany || !receiptDate || !receiptPeriod || !amount) {
+      alert("Preencha funcionário, empresa, competência, data e valores do recibo.");
       return;
     }
     const cnpj = companyCnpjs[receiptCompany] || "CNPJ não informado";
+    const [year, month] = receiptPeriod.split("-").map(Number);
+    const periodStart = new Date(year, month - 1, 1, 12).toLocaleDateString("pt-BR");
+    const periodEnd = new Date(year, month, 0, 12).toLocaleDateString("pt-BR");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("RECIBO", 105, 35, { align: "center" });
-    doc.setFontSize(12);
-    doc.roundedRect(22, 48, 166, 112, 2, 2);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Eu, ${receiptEmployee.employee}`, 30, 65);
-    doc.text(`CPF: ${receiptEmployee.cpf || "não informado"}`, 30, 75);
-    doc.text("declaro que recebi da empresa:", 30, 91);
-    doc.setFont("helvetica", "bold");
-    doc.text(receiptCompany, 30, 102);
-    doc.setFont("helvetica", "normal");
-    doc.text(`CNPJ: ${cnpj}`, 30, 112);
-    doc.text("a importância de:", 30, 128);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), 30, 140);
+    doc.setFontSize(10.5);
+    doc.text(receiptCompany.toUpperCase(), 25, 25);
+    doc.text(`CNPJ: ${cnpj}`, 25, 31);
+    doc.line(25, 48, 185, 48);
+    doc.setFontSize(17);
+    doc.text(receiptKind === "salary" ? "RECIBO DE PAGAMENTO DE SALÁRIO" : "RECIBO DE ADIANTAMENTO SALARIAL", 25, 62);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    const referenceLines = doc.splitTextToSize(`Referente a: ${receiptReference.trim()}`, 145);
-    doc.text(referenceLines, 30, 151);
+    doc.text(`Recebi da empresa ${receiptCompany} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })},`, 25, 76);
+    doc.text(receiptKind === "salary" ? `referente ao pagamento de salário do período de ${periodStart} até ${periodEnd}.` : `referente ao adiantamento salarial da competência ${String(month).padStart(2, "0")}/${year}.`, 25, 86);
+    doc.line(25, 100, 185, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Descrição", 25, 111);
+    doc.text("Valor (R$)", 155, 111);
+    doc.setFont("helvetica", "normal");
+    const currency = (value: number) => value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (receiptKind === "salary") {
+      doc.text("+ Salário bruto", 25, 123); doc.text(currency(gross), 155, 123);
+      doc.text("- Descontos", 25, 133); doc.text(currency(discount), 155, 133);
+      doc.text("- Adiantamento", 25, 143); doc.text(currency(advance), 155, 143);
+      doc.setFont("helvetica", "bold"); doc.text("= Valor líquido", 25, 155); doc.text(currency(amount), 155, 155);
+    } else {
+      doc.text("+ Adiantamento salarial", 25, 123); doc.text(currency(advance), 155, 123);
+    }
+    doc.line(25, 166, 185, 166);
+    doc.setFont("helvetica", "normal");
+    doc.text("Declaro que recebi a quantia acima discriminada, dando plena, geral e irrevogável", 25, 181);
+    doc.text("quitação dos valores mencionados.", 25, 188);
     const receiptDateText = new Date(`${receiptDate}T12:00:00`).toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "long",
       year: "numeric",
     });
-    doc.text(`Belo Horizonte, ${receiptDateText}.`, 30, 184);
-    doc.line(55, 220, 155, 220);
-    doc.text("Assinatura e CPF", 105, 227, { align: "center" });
+    doc.text(`Belo Horizonte, ${receiptDateText}.`, 25, 218);
+    doc.line(25, 245, 185, 245);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Assinatura do(a) empregado(a): ${receiptEmployee.employee}`, 25, 255);
+    doc.text(`CPF: ${receiptEmployee.cpf || "não informado"}`, 25, 265);
     const safeName = receiptEmployee.employee.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-    doc.save(`recibo-${safeName}-${receiptDate}.pdf`);
+    doc.save(`recibo-${receiptKind === "salary" ? "salario" : "adiantamento"}-${safeName}-${receiptDate}.pdf`);
     window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Recibo gerado com sucesso" }));
   };
   return (
@@ -7897,16 +7920,19 @@ function AdministrativePage({ employees, companies, companyCnpjs }: { employees:
         <div className="border-b border-slate-200 px-5 py-5 sm:px-7">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white"><ReceiptText size={21} /></span>
-            <div><h2 className="text-lg font-black">Recibo</h2><p className="text-sm text-slate-500">Preencha os dados e gere o recibo conforme o modelo enviado.</p></div>
+            <div><h2 className="text-lg font-black">Recibos de pagamento</h2><p className="text-sm text-slate-500">Modelos separados para salário e adiantamento salarial.</p></div>
           </div>
         </div>
         <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
+          <div className="sm:col-span-2 grid grid-cols-2 rounded-xl bg-slate-100 p-1"><button type="button" onClick={() => setReceiptKind("salary")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptKind === "salary" ? "bg-white shadow-sm" : "text-slate-500"}`}>Recibo de salário</button><button type="button" onClick={() => setReceiptKind("advance")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptKind === "advance" ? "bg-white shadow-sm" : "text-slate-500"}`}>Recibo de adiantamento</button></div>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee} - {employee.store}</option>)}</select></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione a empresa</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select>{!companies.length && <span className="mt-1 block text-xs text-amber-600">Cadastre a empresa e o CNPJ em Configurações → Empresas.</span>}</label>
+          <label><span className="mb-2 block text-sm font-bold text-slate-700">Competência</span><input type="month" value={receiptPeriod} onChange={(event) => setReceiptPeriod(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Data</span><input type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
-          <label><span className="mb-2 block text-sm font-bold text-slate-700">Valor</span><input inputMode="decimal" value={receiptAmount} onChange={(event) => setReceiptAmount(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label>
-          <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Referente a</span><textarea rows={3} value={receiptReference} onChange={(event) => setReceiptReference(event.target.value)} placeholder="Ex.: pagamento de prestação de serviço, ajuda de custo..." className="w-full rounded-xl border border-slate-200 px-4 py-3" /></label>
-          <div className="sm:col-span-2 flex justify-end"><button type="button" onClick={generateReceipt} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white shadow-lg hover:bg-slate-700"><Download size={18} />Gerar recibo em PDF</button></div>
+          {receiptKind === "salary" && <><label><span className="mb-2 block text-sm font-bold text-slate-700">Salário bruto</span><input inputMode="decimal" value={receiptGross} onChange={(event) => setReceiptGross(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label><label><span className="mb-2 block text-sm font-bold text-slate-700">Descontos</span><input inputMode="decimal" value={receiptDiscount} onChange={(event) => setReceiptDiscount(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label></>}
+          <label className={receiptKind === "advance" ? "sm:col-span-2" : "sm:col-span-2"}><span className="mb-2 block text-sm font-bold text-slate-700">{receiptKind === "salary" ? "Adiantamento já pago" : "Valor do adiantamento"}</span><input inputMode="decimal" value={receiptAdvance} onChange={(event) => setReceiptAdvance(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label>
+          {receiptKind === "salary" && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4"><span className="text-sm text-slate-500">Valor líquido do recibo</span><b className="mt-1 block text-xl">{Math.max(0, parseMoney(receiptGross) - parseMoney(receiptDiscount) - parseMoney(receiptAdvance)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></div>}
+          <div className="sm:col-span-2 flex justify-end"><button type="button" onClick={generateReceipt} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white shadow-lg hover:bg-slate-700"><Download size={18} />Gerar recibo de {receiptKind === "salary" ? "salário" : "adiantamento"}</button></div>
         </div>
       </section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
@@ -8439,7 +8465,7 @@ export default function App() {
         setCompanyCnpjs={setCompanyCnpjs}
       />
     ) : module === "administrative" ? (
-      <AdministrativePage employees={filteredEmployees} companies={companies} companyCnpjs={companyCnpjs} />
+      <AdministrativePage employees={filteredEmployees} companies={companies} companyCnpjs={companyCnpjs} financialEntries={financialEntries} />
     ) : module === "finance" ? (
       page === "Relatórios" ? (
         <FinancialReports
