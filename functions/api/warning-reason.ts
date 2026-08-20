@@ -20,7 +20,7 @@ Produza apenas um parágrafo curto, sem título, saudação, aspas ou observaç�
 Descrição informada: ${description}`
 
   try {
-    const result: any = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+    const result: any = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [
         { role: 'system', content: 'Siga rigorosamente as instruções e devolva somente o texto solicitado.' },
         { role: 'user', content: prompt },
