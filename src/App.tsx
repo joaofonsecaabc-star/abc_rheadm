@@ -8255,41 +8255,46 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
               </div>
             </div>
           </>}
-          {receiptKind === "advance" && <label className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Valor do adiantamento</span><input inputMode="decimal" value={receiptAdvance} onChange={(event) => setReceiptAdvance(formatMoneyInput(event.target.value))} placeholder="R$ 0,00" className="h-14 w-full rounded-xl border border-slate-200 px-4 text-lg font-black" /></label>}
+          {receiptKind === "advance" && <><div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">3. Valores</b><p className="text-xs text-slate-500">Informe o valor do adiantamento.</p></div><label className="sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Valor do adiantamento</span><input inputMode="decimal" value={receiptAdvance} onChange={(event) => setReceiptAdvance(formatMoneyInput(event.target.value))} placeholder="R$ 0,00" className="h-14 w-full rounded-xl border border-slate-300 bg-white px-4 text-lg font-black shadow-sm" /></label></>}
           {receiptKind === "salary" && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4"><span className="text-sm text-slate-500">Valor líquido do recibo</span><b className="mt-1 block text-xl">{Math.max(0, proportionalSalary + receiptAdditionTotal - receiptDiscountTotal - parseMoney(receiptAdvance)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b><span className="mt-1 block text-xs text-slate-500">Adicionais: {receiptAdditionTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} · Descontos: {receiptDiscountTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div>}
-          <div className="sm:col-span-2 flex justify-end rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><button type="button" onClick={generateReceipt} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"><Download size={19} />Gerar recibo de {receiptKind === "salary" ? "salário" : "adiantamento"}</button></div>
+          <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-5"><button type="button" onClick={generateReceipt} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3.5 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"><Download size={19} />Gerar recibo de {receiptKind === "salary" ? "salário" : "adiantamento"}</button></div>
         </div>
       </section>}
-      {page === "Recibo" && <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <div className="border-b border-slate-200 bg-white px-5 py-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-700"><ReceiptText size={20} /></span><div><h2 className="text-lg font-black text-slate-900">Recibo simples</h2><p className="text-sm text-slate-500">Informe recebedor, pagamento e referência.</p></div></div></div>
-        <div className="grid gap-4 bg-slate-50/60 p-5 sm:grid-cols-2">
-          <div className="sm:col-span-2 grid grid-cols-2 rounded-2xl border border-slate-200 bg-slate-200/70 p-1.5"><button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-xl px-4 py-3 text-sm font-bold transition ${receiptPersonMode === "registered" ? "bg-white text-slate-950 shadow-md" : "text-slate-500"}`}>Funcionário cadastrado</button><button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-xl px-4 py-3 text-sm font-bold transition ${receiptPersonMode === "manual" ? "bg-white text-slate-950 shadow-md" : "text-slate-500"}`}>Preencher manualmente</button></div>
+      {page === "Recibo" && <section className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-slate-800 px-6 py-5 text-white"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><ReceiptText size={21} /></span><div><h2 className="text-xl font-black">Recibo simples</h2><p className="text-sm text-slate-300">Informe recebedor, pagamento e referência.</p></div></div></div>
+        <div className="grid gap-x-5 gap-y-4 p-6 sm:grid-cols-2">
+          <div className="sm:col-span-2 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between"><div><b className="text-sm text-slate-900">1. Identificação</b><p className="text-xs text-slate-500">Escolha um funcionário ou preencha os dados manualmente.</p></div><div className="grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]"><button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "registered" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>Funcionário cadastrado</button><button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "manual" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>Preencher manualmente</button></div></div>
           {receiptPersonMode === "registered" ? <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}</select></label> : <><label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={receiptManualName} onChange={(event) => setReceiptManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label><label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={receiptManualCpf} onChange={(event) => setReceiptManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label></>}
-          <label><span className="mb-2 block text-sm font-bold text-slate-700">Loja / empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione a loja</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select></label>
+          <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">2. Documento</b><p className="text-xs text-slate-500">Defina a empresa e a data do recibo.</p></div>
+          <label><span className="mb-2 block text-sm font-bold text-slate-700">Loja / empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 shadow-sm"><option value="">Selecione a loja</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Data do recibo</span><input type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
-          <label><span className="mb-2 block text-sm font-bold text-slate-700">Valor</span><input inputMode="decimal" value={genericAmount} onChange={(event) => setGenericAmount(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label>
+          <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">3. Pagamento</b><p className="text-xs text-slate-500">Informe o valor e o motivo do pagamento.</p></div>
+          <label><span className="mb-2 block text-sm font-bold text-slate-700">Valor</span><input inputMode="decimal" value={genericAmount} onChange={(event) => setGenericAmount(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-300 px-4 font-bold shadow-sm" /></label>
           <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Referente a</span><div className="flex flex-col gap-3 sm:flex-row"><input value={genericReference} onChange={(event) => setGenericReference(event.target.value)} placeholder="Ex.: vale, prestação de serviço ou reembolso" className="h-12 flex-1 rounded-xl border border-slate-200 px-4" /><button type="button" disabled={improvingGenericReference} onClick={() => void improveAdministrativeText(genericReference, "receipt_reference", setGenericReference, setImprovingGenericReference)} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 font-bold text-white hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60"><Sparkles size={18} />{improvingGenericReference ? "Melhorando..." : "Melhorar com IA"}</button></div><span className="mt-2 block text-xs text-slate-500">A IA transforma a descrição em uma referência mais natural para o recibo.</span></label>
-          <div className="sm:col-span-2 flex justify-end rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><button type="button" onClick={generateGenericReceipt} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"><Download size={19} />Gerar recibo em PDF</button></div>
+          <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-5"><button type="button" onClick={generateGenericReceipt} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3.5 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"><Download size={19} />Gerar recibo em PDF</button></div>
         </div>
       </section>}
-      {page === "Advertência" && <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
-        <div className="border-b border-slate-200 bg-white px-5 py-4">
+      {page === "Advertência" && <section className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-slate-800 px-6 py-5 text-white">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-700">
-              <TriangleAlert size={20} />
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10 text-white">
+              <TriangleAlert size={21} />
             </span>
             <div>
-              <h2 className="text-lg font-black text-slate-900">Advertência disciplinar</h2>
-              <p className="text-sm text-slate-500">
+              <h2 className="text-xl font-black">Advertência disciplinar</h2>
+              <p className="text-sm text-slate-300">
                 Selecione o funcionário, informe as datas e descreva o ocorrido.
               </p>
             </div>
           </div>
         </div>
-        <div className="grid gap-4 bg-slate-50/60 p-5 sm:grid-cols-2">
-          <div className="sm:col-span-2 grid grid-cols-2 rounded-2xl border border-slate-200 bg-slate-200/70 p-1.5">
-            <button type="button" onClick={() => setWarningPersonMode("registered")} className={`rounded-xl px-4 py-3 text-sm font-bold transition ${warningPersonMode === "registered" ? "bg-white text-slate-950 shadow-md" : "text-slate-500"}`}>Funcionário cadastrado</button>
-            <button type="button" onClick={() => setWarningPersonMode("manual")} className={`rounded-xl px-4 py-3 text-sm font-bold transition ${warningPersonMode === "manual" ? "bg-white text-slate-950 shadow-md" : "text-slate-500"}`}>Preencher manualmente</button>
+        <div className="grid gap-x-5 gap-y-4 p-6 sm:grid-cols-2">
+          <div className="sm:col-span-2 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div><b className="text-sm text-slate-900">1. Identificação</b><p className="text-xs text-slate-500">Escolha um funcionário ou preencha os dados manualmente.</p></div>
+            <div className="grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]">
+            <button type="button" onClick={() => setWarningPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${warningPersonMode === "registered" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>Funcionário cadastrado</button>
+            <button type="button" onClick={() => setWarningPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${warningPersonMode === "manual" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>Preencher manualmente</button>
+            </div>
           </div>
           {warningPersonMode === "registered" ? (
             <label className="sm:col-span-2">
@@ -8305,6 +8310,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
               <label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={warningManualCpf} onChange={(event) => setWarningManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
             </>
           )}
+          <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">2. Ocorrência</b><p className="text-xs text-slate-500">Informe as datas e descreva objetivamente o que aconteceu.</p></div>
           <label>
             <span className="mb-2 block text-sm font-bold text-slate-700">Data da ocorrência</span>
             <input
@@ -8345,6 +8351,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
             </div>
             <span className="mt-2 block text-xs text-slate-500">A IA apenas organiza o texto informado. Revise o conteúdo antes de gerar o documento.</span>
           </label>
+          <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">3. Redação final</b><p className="text-xs text-slate-500">Confira e ajuste o texto que será impresso.</p></div>
           <label className="sm:col-span-2">
             <span className="mb-2 block text-sm font-bold text-slate-700">Motivo da advertência</span>
             <div>
@@ -8364,11 +8371,11 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
               <span className="ml-2 text-slate-500">CPF: {warningPerson.cpf || "não informado"}</span>
             </div>
           )}
-          <div className="sm:col-span-2 flex justify-end rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-5">
             <button
               type="button"
               onClick={generateWarning}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3.5 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"
             >
               <Download size={18} />
               Gerar advertência em PDF
