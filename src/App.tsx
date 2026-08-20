@@ -7976,8 +7976,16 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setFont("helvetica", "normal");
     doc.text(`Funcionário(a): ${warningPerson.employee}`, left, 55);
     doc.text(`CPF: ${warningPerson.cpf}`, left, 63);
+    const cleanedReason = reason
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/[.]+$/, "")
+      .replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, "");
+    const reasonClause = cleanedReason
+      ? cleanedReason.charAt(0).toLowerCase() + cleanedReason.slice(1)
+      : "houve a ocorrência informada";
     const body =
-      `Vimos, pelo presente, aplicar-lhe advertência disciplinar pelo fato de que foi apurado que, em ${longDate(occurrenceDate)}, ocorreu ${reason.trim()}. Tal conduta representa descumprimento das obrigações inerentes ao contrato de trabalho e poderá caracterizar desídia no desempenho das funções, na forma do art. 482, letra “e”, da Consolidação das Leis do Trabalho (CLT).`;
+      `Vimos, pelo presente, aplicar-lhe advertência disciplinar, pois foi apurado que, em ${longDate(occurrenceDate)}, ${reasonClause}. Tal conduta representa descumprimento das obrigações inerentes ao contrato de trabalho e poderá caracterizar desídia no desempenho das funções, na forma do art. 482, letra “e”, da Consolidação das Leis do Trabalho (CLT).`;
     const warning =
       "Esclarecemos, ainda, que a repetição de procedimentos como este poderá ser considerada ato faltoso, passível de suspensão e, consequentemente, de dispensa por justa causa, conforme o artigo 482 da CLT.";
     doc.setFontSize(11);
