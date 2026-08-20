@@ -7851,6 +7851,8 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   const [receiptDiscounts, setReceiptDiscounts] = useState<Array<{ id: number; name: string; mode: "value" | "percent"; value: string }>>([]);
   const [genericAmount, setGenericAmount] = useState("");
   const [genericReference, setGenericReference] = useState("");
+  const [improvingGenericReference, setImprovingGenericReference] = useState(false);
+  const [improvingWarningReason, setImprovingWarningReason] = useState(false);
   useEffect(() => {
     if (page === "Salário") setReceiptKind("salary");
     if (page === "Adiantamento") setReceiptKind("advance");
@@ -7922,6 +7924,33 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       alert(error instanceof Error ? error.message : "Não foi possível gerar o texto com IA.");
     } finally {
       setGeneratingReason(false);
+    }
+  };
+  const improveAdministrativeText = async (
+    text: string,
+    context: "receipt_reference" | "warning_reason",
+    update: (value: string) => void,
+    setLoading: (value: boolean) => void,
+  ) => {
+    if (text.trim().length < 2) {
+      alert("Digite primeiro um texto para a IA melhorar.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetch("/api/improve-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.trim(), context }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.text) throw new Error(data.error || "Não foi possível melhorar o texto.");
+      update(String(data.text));
+      window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Texto melhorado com IA. Revise antes de gerar." }));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível melhorar o texto com IA agora.");
+    } finally {
+      setLoading(false);
     }
   };
   const generateWarning = async () => {
@@ -8109,7 +8138,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.text(companyCnpjs[receiptCompany] || "CNPJ não informado", 105, cnpjY, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.text(`EU, ${receiptPerson.employee.toUpperCase()}, CPF ${receiptPerson.cpf},`, 105, employeeY, { align: "center" });
-    const declaration = `DECLARO QUE RECEBI da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${moneyInWords(amount)}), referente a: ${genericReference.trim()}.`;
+    const declaration = `DECLARO QUE RECEBI da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${moneyInWords(amount)}), referente a ${genericReference.trim()}.`;
     const declarationLines = doc.splitTextToSize(declaration, 150);
     doc.text(declarationLines, 105, declarationY, { align: "center", lineHeightFactor: 1.5 });
     const dateText = new Date(`${receiptDate}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
@@ -8191,7 +8220,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Loja / empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione a loja</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Data do recibo</span><input type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Valor</span><input inputMode="decimal" value={genericAmount} onChange={(event) => setGenericAmount(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label>
-          <label><span className="mb-2 block text-sm font-bold text-slate-700">Referente a</span><input value={genericReference} onChange={(event) => setGenericReference(event.target.value)} placeholder="Ex.: prestação de serviço" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
+          <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Referente a</span><div className="flex flex-col gap-3 sm:flex-row"><input value={genericReference} onChange={(event) => setGenericReference(event.target.value)} placeholder="Ex.: vale, prestação de serviço ou reembolso" className="h-12 flex-1 rounded-xl border border-slate-200 px-4" /><button type="button" disabled={improvingGenericReference} onClick={() => void improveAdministrativeText(genericReference, "receipt_reference", setGenericReference, setImprovingGenericReference)} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 font-bold text-white hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60"><Sparkles size={18} />{improvingGenericReference ? "Melhorando..." : "Melhorar com IA"}</button></div><span className="mt-2 block text-xs text-slate-500">A IA transforma a descrição em uma referência mais natural para o recibo.</span></label>
           <div className="sm:col-span-2 flex justify-end"><button type="button" onClick={generateGenericReceipt} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white shadow-lg hover:bg-slate-700"><Download size={18} />Gerar recibo em PDF</button></div>
         </div>
       </section>}
@@ -8270,13 +8299,16 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           </label>
           <label className="sm:col-span-2">
             <span className="mb-2 block text-sm font-bold text-slate-700">Motivo da advertência</span>
-            <textarea
-              rows={4}
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="Descreva de forma objetiva o motivo da advertência"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
-            />
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <textarea
+                rows={4}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Descreva de forma objetiva o motivo da advertência"
+                className="min-h-28 flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
+              />
+              <button type="button" disabled={improvingWarningReason} onClick={() => void improveAdministrativeText(reason, "warning_reason", setReason, setImprovingWarningReason)} className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"><Sparkles size={18} />{improvingWarningReason ? "Melhorando..." : "Melhorar com IA"}</button>
+            </div>
           </label>
           {warningPerson && (
             <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
