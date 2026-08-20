@@ -382,28 +382,37 @@ const administrativeNav = [
   ["Recibo", ReceiptText],
 ] as const;
 let groupLogoDataPromise: Promise<string> | null = null;
+let hlmLogoDataPromise: Promise<string> | null = null;
+const loadLogo = (path: string) => fetch(path)
+  .then((response) => {
+    if (!response.ok) throw new Error("Logo não encontrada");
+    return response.blob();
+  })
+  .then((blob) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  }));
 const loadGroupLogo = () => {
   if (!groupLogoDataPromise) {
-    groupLogoDataPromise = fetch("/grupo-abc-vera-cruz.png")
-      .then((response) => {
-        if (!response.ok) throw new Error("Logo não encontrada");
-        return response.blob();
-      })
-      .then((blob) => new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-      }));
+    groupLogoDataPromise = loadLogo("/grupo-abc-vera-cruz.png");
   }
   return groupLogoDataPromise;
 };
-const addGroupLogo = async (doc: jsPDF, x: number, y: number, width = 42) => {
+const loadHlmLogo = () => {
+  if (!hlmLogoDataPromise) hlmLogoDataPromise = loadLogo("/hlm-gestao-logo.png");
+  return hlmLogoDataPromise;
+};
+const addCompanyLogo = async (doc: jsPDF, company: string, x: number, y: number, width = 52) => {
   try {
-    const data = await loadGroupLogo();
-    doc.addImage(data, "PNG", x, y, width, width / 1.78);
+    const isHlm = /\bHLM\b/i.test(company);
+    const data = isHlm ? await loadHlmLogo() : await loadGroupLogo();
+    doc.addImage(data, "PNG", x, y, width, width / (isHlm ? 1.56 : 1.78));
+    return true;
   } catch (error) {
-    console.warn("Não foi possível adicionar a logo ao documento", error);
+    console.warn("Não foi possível adicionar a logo da empresa ao documento", error);
+    return false;
   }
 };
 const formatCpf = (value: string) =>
@@ -7984,15 +7993,16 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const left = 23,
       right = 187,
       width = right - left;
+    await addCompanyLogo(doc, "HLM GESTÃO LTDA", 79, 8, 52);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
-    doc.text("ADVERTÊNCIA DISCIPLINAR", 105, 24, { align: "center" });
+    doc.text("ADVERTÊNCIA DISCIPLINAR", 105, 48, { align: "center" });
     doc.setFontSize(10.5);
-    doc.text("Empresa: HLM GESTÃO LTDA - CNPJ: 55.566.792/0001-58", left, 42);
+    doc.text("Empresa: HLM GESTÃO LTDA - CNPJ: 55.566.792/0001-58", left, 60);
     doc.setFont("helvetica", "normal");
-    doc.text(`Funcionário(a): ${warningPerson.employee}`, left, 55);
-    doc.text(`CPF: ${warningPerson.cpf}`, left, 63);
+    doc.text(`Funcionário(a): ${warningPerson.employee}`, left, 72);
+    doc.text(`CPF: ${warningPerson.cpf}`, left, 80);
     const cleanedReason = reason
       .trim()
       .replace(/\s+/g, " ")
@@ -8013,8 +8023,8 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       "Esclarecemos, ainda, que a repetição de procedimentos como este poderá ser considerada ato faltoso, passível de suspensão e, consequentemente, de dispensa por justa causa, conforme o artigo 482 da CLT.";
     doc.setFontSize(11);
     const bodyLines = doc.splitTextToSize(body, width);
-    doc.text(bodyLines, left, 82, { align: "justify", maxWidth: width, lineHeightFactor: 1.55 });
-    const warningY = 82 + bodyLines.length * 6.2 + 8;
+    doc.text(bodyLines, left, 96, { align: "justify", maxWidth: width, lineHeightFactor: 1.55 });
+    const warningY = 96 + bodyLines.length * 6.2 + 8;
     const warningLines = doc.splitTextToSize(warning, width);
     doc.text(warningLines, left, warningY, {
       align: "justify",
@@ -8062,15 +8072,14 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const periodStart = new Date(`${receiptSalaryStart}T12:00:00`).toLocaleDateString("pt-BR");
     const periodEnd = new Date(`${receiptSalaryEnd}T12:00:00`).toLocaleDateString("pt-BR");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
-    const showAbcLogo = !/\bHLM\b/i.test(receiptCompany);
-    if (showAbcLogo) await addGroupLogo(doc, 79, 12, 52);
-    const companyY = showAbcLogo ? 45 : 22;
-    const cnpjY = showAbcLogo ? 53 : 30;
-    const dividerY = showAbcLogo ? 61 : 40;
-    const titleY = showAbcLogo ? 74 : 55;
-    const employeeY = showAbcLogo ? 87 : 68;
-    const cpfY = showAbcLogo ? 95 : 76;
-    const receivedY = showAbcLogo ? 108 : 89;
+    const hasCompanyLogo = await addCompanyLogo(doc, receiptCompany, 79, 8, 52);
+    const companyY = hasCompanyLogo ? 45 : 22;
+    const cnpjY = hasCompanyLogo ? 53 : 30;
+    const dividerY = hasCompanyLogo ? 61 : 40;
+    const titleY = hasCompanyLogo ? 74 : 55;
+    const employeeY = hasCompanyLogo ? 87 : 68;
+    const cpfY = hasCompanyLogo ? 95 : 76;
+    const receivedY = hasCompanyLogo ? 108 : 89;
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -8158,15 +8167,14 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
-    const showAbcLogo = !/\bHLM\b/i.test(receiptCompany);
-    if (showAbcLogo) await addGroupLogo(doc, 79, 15, 52);
-    const titleY = showAbcLogo ? 54 : 28;
-    const companyY = showAbcLogo ? 70 : 44;
-    const cnpjY = showAbcLogo ? 78 : 52;
-    const employeeY = showAbcLogo ? 98 : 72;
-    const declarationY = showAbcLogo ? 114 : 88;
-    const dateY = showAbcLogo ? 165 : 128;
-    const signatureY = showAbcLogo ? 210 : 168;
+    const hasCompanyLogo = await addCompanyLogo(doc, receiptCompany, 79, 8, 52);
+    const titleY = hasCompanyLogo ? 54 : 28;
+    const companyY = hasCompanyLogo ? 70 : 44;
+    const cnpjY = hasCompanyLogo ? 78 : 52;
+    const employeeY = hasCompanyLogo ? 98 : 72;
+    const declarationY = hasCompanyLogo ? 114 : 88;
+    const dateY = hasCompanyLogo ? 165 : 128;
+    const signatureY = hasCompanyLogo ? 210 : 168;
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
