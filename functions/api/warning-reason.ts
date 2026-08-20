@@ -15,9 +15,10 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
   const prompt = `Você auxilia um setor de Recursos Humanos brasileiro a redigir somente o motivo factual de uma advertência disciplinar.
 Reescreva a descrição abaixo em português do Brasil, com linguagem profissional, objetiva, neutra e respeitosa.
 Não invente fatos, datas, leis, nomes, punições ou circunstâncias. Não faça acusações além do que foi informado.
-Produza apenas uma oração curta que possa completar naturalmente a frase "foi apurado que, na data informada, ...".
+Produza apenas uma oração curta que possa completar naturalmente a frase "foi apurado que, ...".
 Comece diretamente pelo fato, preferencialmente com verbo em letra minúscula. Nunca inicie com "foi constatado", "foi apurado", "foi verificado", "ocorreu" ou expressões equivalentes.
-Não inclua data, título, saudação, aspas, punição ou observações adicionais.
+Ao se referir à pessoa advertida, use sempre "o funcionário mencionado", nunca "um funcionário", "o funcionário" ou nomes próprios.
+Não escreva "na data informada" e não inclua outra data, título, saudação, aspas, punição ou observações adicionais.
 
 Descrição informada: ${description}`
 
@@ -31,7 +32,7 @@ Descrição informada: ${description}`
         max_tokens: 220,
         temperature: 0.2,
       })
-      const reason = String(result?.response || '').trim().replace(/^["']|["']$/g, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '')
+      const reason = String(result?.response || '').trim().replace(/^["']|["']$/g, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '').replace(/\bna data informada[,]?\s*/gi, '').replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, 'o funcionário mencionado')
       if (reason) return json({ reason, provider: 'cloudflare' })
       console.error('Cloudflare Workers AI returned an empty warning reason')
     } catch (error) {
@@ -45,7 +46,7 @@ Descrição informada: ${description}`
       input: prompt,
       maxOutputTokens: 220,
     })
-    const reason = String(openAIText || '').trim().replace(/^["']|["']$/g, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '')
+    const reason = String(openAIText || '').trim().replace(/^["']|["']$/g, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '').replace(/\bna data informada[,]?\s*/gi, '').replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, 'o funcionário mencionado')
     if (reason) return json({ reason, provider: 'openai' })
   } catch (error) {
     console.error('OpenAI warning reason fallback error', error)

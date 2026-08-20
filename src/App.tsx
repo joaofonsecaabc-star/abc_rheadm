@@ -7993,7 +7993,9 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       .trim()
       .replace(/\s+/g, " ")
       .replace(/[.]+$/, "")
-      .replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, "");
+      .replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, "")
+      .replace(/\bna data informada[,]?\s*/gi, "")
+      .replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, "o funcionário mencionado");
     const reasonClause = cleanedReason
       ? cleanedReason.charAt(0).toLowerCase() + cleanedReason.slice(1)
       : "houve a ocorrência informada";

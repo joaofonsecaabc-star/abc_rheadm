@@ -15,7 +15,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
 
   const instruction = context === 'receipt_reference'
     ? `Reescreva o texto como uma expressão curta, natural e profissional que complete a frase "referente a ..." em um recibo brasileiro. Evite dois-pontos, título, saudação, aspas e ponto final. Não invente informações. Exemplo: "Vale" pode se tornar "pagamento de vale".`
-    : `Reescreva o motivo em português do Brasil, com linguagem profissional, objetiva, neutra e respeitosa. Preserve rigorosamente os fatos informados. Não invente nomes, datas, leis, punições ou circunstâncias. Produza apenas uma oração curta que complete naturalmente "foi apurado que, na data informada, ...". Comece diretamente pelo fato e nunca use como introdução "foi constatado", "foi apurado", "foi verificado" ou "ocorreu". Não inclua título, saudação, aspas ou comentários.`
+    : `Reescreva o motivo em português do Brasil, com linguagem profissional, objetiva, neutra e respeitosa. Preserve rigorosamente os fatos informados. Não invente nomes, datas, leis, punições ou circunstâncias. Produza apenas uma oração curta que será colocada depois da data da ocorrência. Comece diretamente pelo fato e nunca use como introdução "foi constatado", "foi apurado", "foi verificado" ou "ocorreu". Ao citar a pessoa advertida, use sempre "o funcionário mencionado", nunca "um funcionário", "o funcionário" ou nomes próprios. Não escreva "na data informada" e não inclua título, saudação, aspas ou comentários.`
   const prompt = `${instruction}\n\nTexto informado: ${text}`
 
   if (env.AI) {
@@ -28,7 +28,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
         max_tokens: context === 'receipt_reference' ? 100 : 260,
         temperature: 0.25,
       })
-      const improved = String(result?.response || '').trim().replace(/^["']|["']$/g, '').replace(/\.$/, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '')
+      const improved = String(result?.response || '').trim().replace(/^["']|["']$/g, '').replace(/\.$/, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '').replace(/\bna data informada[,]?\s*/gi, '').replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, 'o funcionário mencionado')
       if (improved) return json({ text: improved, provider: 'cloudflare' })
       console.error('Cloudflare Workers AI returned an empty improved text')
     } catch (error) {
@@ -42,7 +42,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
       input: prompt,
       maxOutputTokens: context === 'receipt_reference' ? 100 : 260,
     })
-    const improved = String(openAIText || '').trim().replace(/^["']|["']$/g, '').replace(/\.$/, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '')
+    const improved = String(openAIText || '').trim().replace(/^["']|["']$/g, '').replace(/\.$/, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '').replace(/\bna data informada[,]?\s*/gi, '').replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, 'o funcionário mencionado')
     if (improved) return json({ text: improved, provider: 'openai' })
   } catch (error) {
     console.error('OpenAI improve text fallback error', error)
