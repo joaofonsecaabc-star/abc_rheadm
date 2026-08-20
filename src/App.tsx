@@ -30,6 +30,7 @@ import {
   ReceiptText,
   Search,
   Settings,
+  Sparkles,
   Store,
   Ticket,
   TriangleAlert,
@@ -7764,6 +7765,8 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
   const [reason, setReason] = useState(
     "falta injustificada, sem apresentação de justificativa válida",
   );
+  const [warningSummary, setWarningSummary] = useState("");
+  const [generatingReason, setGeneratingReason] = useState(false);
   const [warningPersonMode, setWarningPersonMode] = useState<"registered" | "manual">("registered");
   const [warningManualName, setWarningManualName] = useState("");
   const [warningManualCpf, setWarningManualCpf] = useState("");
@@ -7806,6 +7809,28 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
       month: "long",
       year: "numeric",
     });
+  };
+  const generateReasonWithAI = async () => {
+    if (warningSummary.trim().length < 5) {
+      alert("Conte resumidamente o que aconteceu para a IA criar o motivo.");
+      return;
+    }
+    setGeneratingReason(true);
+    try {
+      const response = await fetch("/api/warning-reason", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: warningSummary.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.reason) throw new Error(data.error || "Não foi possível gerar o texto.");
+      setReason(String(data.reason));
+      window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Motivo criado com IA. Revise antes de gerar." }));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível gerar o texto com IA.");
+    } finally {
+      setGeneratingReason(false);
+    }
   };
   const generateWarning = () => {
     if (!warningPerson || !warningPerson.cpf || !documentDate || !occurrenceDate || !reason.trim()) {
@@ -8012,6 +8037,28 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
               onChange={(event) => setDocumentDate(event.target.value)}
               className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500"
             />
+          </label>
+          <label className="sm:col-span-2">
+            <span className="mb-2 block text-sm font-bold text-slate-700">Conte resumidamente o que aconteceu</span>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <textarea
+                rows={3}
+                value={warningSummary}
+                onChange={(event) => setWarningSummary(event.target.value)}
+                placeholder="Ex.: o funcionário faltou ao trabalho no dia informado e não apresentou justificativa"
+                className="min-h-24 flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
+              />
+              <button
+                type="button"
+                onClick={generateReasonWithAI}
+                disabled={generatingReason}
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white shadow-lg hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
+              >
+                <Sparkles size={18} />
+                {generatingReason ? "Criando..." : "Criar com IA"}
+              </button>
+            </div>
+            <span className="mt-2 block text-xs text-slate-500">A IA apenas organiza o texto informado. Revise o conteúdo antes de gerar o documento.</span>
           </label>
           <label className="sm:col-span-2">
             <span className="mb-2 block text-sm font-bold text-slate-700">Motivo da advertência</span>
