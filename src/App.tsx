@@ -7974,26 +7974,26 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const periodStart = new Date(year, month - 1, 1, 12).toLocaleDateString("pt-BR");
     const periodEnd = new Date(year, month, 0, 12).toLocaleDateString("pt-BR");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
-    await addGroupLogo(doc, 30, 14, 36);
+    await addGroupLogo(doc, 79, 12, 52);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text(receiptCompany.toUpperCase(), 74, 25);
-    doc.text(`CNPJ: ${cnpj}`, 74, 31);
-    doc.line(30, 49, 180, 49);
+    doc.text(receiptCompany.toUpperCase(), 105, 45, { align: "center" });
+    doc.text(cnpj, 105, 53, { align: "center" });
+    doc.line(30, 61, 180, 61);
     doc.setFontSize(16);
-    doc.text(receiptKind === "salary" ? "RECIBO DE PAGAMENTO" : "RECIBO DE ADIANTAMENTO", 30, 65);
+    doc.text(receiptKind === "salary" ? "RECIBO DE PAGAMENTO" : "RECIBO DE ADIANTAMENTO", 30, 74);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text(`Empregado(a): ${receiptPerson.employee}`, 30, 78);
-    doc.text(`CPF: ${receiptPerson.cpf}`, 30, 86);
+    doc.text(`Empregado(a): ${receiptPerson.employee}`, 30, 87);
+    doc.text(`CPF: ${receiptPerson.cpf}`, 30, 95);
     const receivedText = `Recebi da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${moneyInWords(amount)}),`;
     const receivedLines = doc.splitTextToSize(receivedText, 150);
-    doc.text(receivedLines, 30, 101, { lineHeightFactor: 1.35 });
+    doc.text(receivedLines, 30, 108, { lineHeightFactor: 1.35 });
     const referenceText = receiptKind === "salary"
       ? `referente ao pagamento de salário do período de ${periodStart} até ${periodEnd}.`
       : `referente ao adiantamento salarial da competência ${String(month).padStart(2, "0")}/${year}.`;
-    const referenceY = 101 + receivedLines.length * 5.5 + 3;
+    const referenceY = 108 + receivedLines.length * 5.5 + 3;
     const referenceLines = doc.splitTextToSize(referenceText, 150);
     doc.text(referenceLines, 30, referenceY, { lineHeightFactor: 1.35 });
     const tableLineY = referenceY + referenceLines.length * 5.5 + 8;
@@ -8061,8 +8061,8 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setFontSize(18);
     doc.text("RECIBO", 105, 54, { align: "center" });
     doc.setFontSize(11);
-    doc.text(receiptCompany.toUpperCase(), 25, 70);
-    doc.text(`CNPJ: ${companyCnpjs[receiptCompany] || "não informado"}`, 25, 78);
+    doc.text(receiptCompany.toUpperCase(), 105, 70, { align: "center" });
+    doc.text(companyCnpjs[receiptCompany] || "CNPJ não informado", 105, 78, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.text(`EU, ${receiptPerson.employee.toUpperCase()}, CPF ${receiptPerson.cpf},`, 25, 98);
     const declaration = `DECLARO QUE RECEBI da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${moneyInWords(amount)}), referente a: ${genericReference.trim()}.`;
