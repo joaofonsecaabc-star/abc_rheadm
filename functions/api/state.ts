@@ -27,6 +27,7 @@ const onRequestGet = async ({ env }: Context, user: User) => {
     const canTransit = moduleAllowed(user, 'transit')
     const canPeople = moduleAllowed(user, 'people')
     const canFinance = moduleAllowed(user, 'finance')
+    const canAdministrative = moduleAllowed(user, 'administrative')
     const [events, occurrences, stores, positions, reasons, settings, revision] = await env.DB.batch([
       canTransit
         ? env.DB.prepare(`SELECT data_json FROM recharge_events WHERE employee_id ${idClause} ORDER BY completed_date DESC`).bind(...employeeIds)
@@ -41,7 +42,9 @@ const onRequestGet = async ({ env }: Context, user: User) => {
       canPeople ? env.DB.prepare('SELECT description FROM unregistered_reasons WHERE active=1 ORDER BY description') : env.DB.prepare('SELECT description FROM unregistered_reasons WHERE 1=0'),
       canFinance || user.role === 'admin'
         ? env.DB.prepare("SELECT key,value_json FROM app_settings WHERE key<>'state_revision'")
-        : env.DB.prepare("SELECT key,value_json FROM app_settings WHERE key IN ('advanceDays','advance_days')"),
+        : canAdministrative
+          ? env.DB.prepare("SELECT key,value_json FROM app_settings WHERE key IN ('taxCompanies','companyCnpjs')")
+          : env.DB.prepare("SELECT key,value_json FROM app_settings WHERE key IN ('advanceDays','advance_days')"),
       env.DB.prepare("SELECT value_json FROM app_settings WHERE key='state_revision'")
     ])
     const settingValues = Object.fromEntries((settings.results || []).map((row: any) => [row.key, JSON.parse(row.value_json)])) as Record<string,unknown>

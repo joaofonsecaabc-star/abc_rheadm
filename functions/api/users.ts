@@ -17,7 +17,7 @@ export const onRequest = async ({ request, env }: { request: Request; env: any }
   const username = String(body.username || '').trim()
   const fullName = String(body.fullName || '').trim()
   const role = body.role === 'admin' ? 'admin' : 'operator'
-  const validModules = ['people', 'finance', 'transit']
+  const validModules = ['people', 'finance', 'transit', 'administrative']
   const modules = [...new Set((Array.isArray(body.modules) ? body.modules : []).filter((item: unknown) => validModules.includes(String(item))))]
   if (!modules.length) return json({ error: 'Selecione pelo menos uma área para o usuário.' }, 400)
   const modulesValue = modules.join(',')

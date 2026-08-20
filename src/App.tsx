@@ -233,7 +233,7 @@ const statusStyle: Record<Status, string> = {
   Atrasado: "bg-red-50 text-red-700 border-red-200",
   Próximo: "bg-blue-50 text-blue-700 border-blue-200",
 };
-type Module = "people" | "transit" | "finance";
+type Module = "people" | "transit" | "finance" | "administrative";
 type FinancialEntry = {
   id: number;
   employeeId: number;
@@ -358,7 +358,6 @@ const peopleNav = [
   ["Visão geral", LayoutDashboard],
   ["Ocorrências", TriangleAlert],
   ["Funcionários", Users],
-  ["Administrativo", FileText],
   ["Relatórios", FileSpreadsheet],
 ] as const;
 const transitNav = [
@@ -375,6 +374,7 @@ const financeNav = [
   ["Impostos", ReceiptText],
   ["Relatórios", FileSpreadsheet],
 ] as const;
+const administrativeNav = [["Documentos", FileText]] as const;
 const formatCpf = (value: string) =>
   value
     .replace(/\D/g, "")
@@ -571,7 +571,9 @@ function Sidebar({
         ? peopleNav
         : module === "transit"
           ? transitNav
-          : financeNav;
+          : module === "finance"
+            ? financeNav
+            : administrativeNav;
   useEffect(() => {
     void cloudCurrentUser().then(setSignedUser);
   }, []);
@@ -603,7 +605,9 @@ function Sidebar({
               ? "Gestão de pessoas"
               : module === "transit"
                 ? "Cartões de passagem"
-                : "Gestão financeira"}
+                : module === "finance"
+                  ? "Gestão financeira"
+                  : "Gestão administrativa"}
           </span>
           <button onClick={close} className="absolute right-4 top-4 lg:hidden">
             <X size={20} />
@@ -613,12 +617,7 @@ function Sidebar({
           Menu principal
         </div>
         <nav className="mt-3 space-y-1 px-3">
-          {nav
-            .filter(
-              ([label]) =>
-                label !== "Administrativo" || signedUser?.role === "admin",
-            )
-            .map(([label, Icon]) => (
+          {nav.map(([label, Icon]) => (
             <button
               key={label}
               onClick={() => {
@@ -635,7 +634,7 @@ function Sidebar({
                 </span>
               )}
             </button>
-            ))}
+          ))}
         </nav>
         <div className="relative mt-auto border-t border-white/10 p-3">
           <button
@@ -732,7 +731,9 @@ function Header({
             ? "Gestão de Pessoas"
             : module === "transit"
               ? "Gestão de Cartões de Passagem"
-              : "Gestão Financeira"}
+              : module === "finance"
+                ? "Gestão Financeira"
+                : "Gestão Administrativa"}
         </div>
         <h1 className="text-xl font-bold text-slate-900">{page}</h1>
       </div>
@@ -5063,7 +5064,7 @@ function ModuleMenu({
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-slate-500 dark:text-slate-400">
             Escolha uma área para continuar. Os funcionários cadastrados são
-            compartilhados entre os três módulos.
+            compartilhados entre os módulos autorizados.
           </p>
         </div>
         <div
@@ -5072,7 +5073,9 @@ function ModuleMenu({
               ? "max-w-lg grid-cols-1"
               : allowedModules.length === 2
                 ? "max-w-4xl md:grid-cols-2"
-                : "max-w-7xl md:grid-cols-3"
+                : allowedModules.length === 3
+                  ? "max-w-7xl md:grid-cols-3"
+                  : "max-w-7xl md:grid-cols-2 xl:grid-cols-4"
           }`}
         >
           {allowedModules.includes("people") && <button
@@ -5136,6 +5139,15 @@ function ModuleMenu({
               Entrar no financeiro
               <ChevronRight className="transition group-hover:translate-x-1" size={18} />
             </span>
+          </button>}
+          {allowedModules.includes("administrative") && <button
+            onClick={() => select("administrative")}
+            className="module-card group rounded-3xl border border-slate-200 bg-white p-7 text-left shadow-soft transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl dark:border-slate-700 dark:bg-[#25272b] dark:hover:border-slate-500 sm:p-9"
+          >
+            <div className="module-icon grid h-14 w-14 place-items-center rounded-2xl bg-[#262626] text-white"><FileText size={28} /></div>
+            <h2 className="mt-7 text-2xl font-bold text-slate-900 dark:text-white">Administrativo</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">Geração de recibos, advertências e documentos administrativos.</p>
+            <span className="mt-7 flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-white">Entrar no administrativo<ChevronRight className="transition group-hover:translate-x-1" size={18} /></span>
           </button>}
         </div>
       </main>
@@ -7992,11 +8004,11 @@ export default function App() {
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(() =>
     cloudEnabled()
       ? null
-      : { id: 0, username: "local", fullName: "João Fonseca", role: "admin", modules: ["people", "finance", "transit"], storeAccess: ["*"] },
+      : { id: 0, username: "local", fullName: "João Fonseca", role: "admin", modules: ["people", "finance", "transit", "administrative"], storeAccess: ["*"] },
   );
   const [module, setModule] = useState<Module | null>(() => {
     const saved = localStorage.getItem("abc_current_module");
-    return saved === "people" || saved === "transit" || saved === "finance"
+    return saved === "people" || saved === "transit" || saved === "finance" || saved === "administrative"
       ? saved
       : null;
   });
@@ -8426,6 +8438,8 @@ export default function App() {
         companyCnpjs={companyCnpjs}
         setCompanyCnpjs={setCompanyCnpjs}
       />
+    ) : module === "administrative" ? (
+      <AdministrativePage employees={filteredEmployees} companies={companies} companyCnpjs={companyCnpjs} />
     ) : module === "finance" ? (
       page === "Relatórios" ? (
         <FinancialReports
@@ -8517,8 +8531,6 @@ export default function App() {
           setItems={setOccurrences}
           readOnly={sessionUser?.role === "operator"}
         />
-      ) : page === "Administrativo" && sessionUser?.role === "admin" ? (
-        <AdministrativePage employees={filteredEmployees} companies={companies} companyCnpjs={companyCnpjs} />
       ) : (
         <HRReports
           employees={accessibleRows.filter(
@@ -8613,7 +8625,7 @@ export default function App() {
         select={(choice) => {
           if (!sessionUser?.modules.includes(choice)) return;
           setModule(choice);
-          setPage(choice === "finance" ? "Dashboard" : "Visão geral");
+          setPage(choice === "finance" ? "Dashboard" : choice === "administrative" ? "Documentos" : "Visão geral");
         }}
         onLogout={logout}
         dark={dark}

@@ -14,12 +14,12 @@ export type CloudState = {
 
 export const cloudEnabled = () => !['localhost','127.0.0.1'].includes(location.hostname)
 
-export type ModuleAccess = 'people'|'finance'|'transit'
+export type ModuleAccess = 'people'|'finance'|'transit'|'administrative'
 export type CloudUser = { id:number; username:string; fullName:string; role:'admin'|'operator'; active:boolean; modules:ModuleAccess[]; storeAccess:string[]; password?:string; lastLoginAt?:string|null; createdAt?:string }
 export type SessionUser = { id:number; username:string; fullName:string; role:'admin'|'operator'; modules:ModuleAccess[]; storeAccess:string[] }
 const normalizeModules=(value:unknown):ModuleAccess[]=>{
   const values=Array.isArray(value)?value:String(value||'people,finance,transit').split(',')
-  return values.filter((item):item is ModuleAccess=>item==='people'||item==='finance'||item==='transit')
+  return values.filter((item):item is ModuleAccess=>item==='people'||item==='finance'||item==='transit'||item==='administrative')
 }
 const normalizeStores=(value:unknown):string[]=>{
   const values=Array.isArray(value)?value:String(value||'*').split(',')
@@ -40,7 +40,7 @@ async function apiJson<T>(url:string, options?:RequestInit):Promise<T>{
 
 export async function cloudSetupRequired(){if(!cloudEnabled())return false;return (await apiJson<{needsSetup:boolean}>('/api/auth/status')).needsSetup}
 export async function cloudCreateAdmin(fullName:string,username:string,password:string){return apiJson('/api/auth/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fullName,username,password})})}
-export async function listCloudUsers(){if(!cloudEnabled())return [];return (await apiJson<{users:Array<Omit<CloudUser,'modules'|'storeAccess'>&{modules:unknown;storeAccess:unknown}>}>('/api/users')).users.map(user=>({...user,active:Boolean(user.active),modules:normalizeModules(user.modules),storeAccess:normalizeStores(user.storeAccess)}))}
+export async function listCloudUsers(){if(!cloudEnabled())return [];return (await apiJson<{users:Array<Omit<CloudUser,'modules'|'storeAccess'>&{modules:unknown;storeAccess:unknown}>}>('/api/users')).users.map(user=>{const modules=normalizeModules(user.modules);if(user.role==='admin'&&!modules.includes('administrative'))modules.push('administrative');return {...user,active:Boolean(user.active),modules,storeAccess:normalizeStores(user.storeAccess)}})}
 export async function createCloudUser(user:Omit<CloudUser,'id'>){return apiJson('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(user)})}
 export async function updateCloudUser(user:CloudUser){return apiJson('/api/users',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(user)})}
 
@@ -50,12 +50,14 @@ export async function cloudLogin(username:string,password:string){
 }
 export async function cloudSession(){if(!cloudEnabled())return true;return (await fetch('/api/auth/session')).ok}
 export async function cloudCurrentUser():Promise<SessionUser|null>{
-  if(!cloudEnabled())return {id:0,username:'local',fullName:'João Fonseca',role:'admin',modules:['people','finance','transit'],storeAccess:['*']}
+  if(!cloudEnabled())return {id:0,username:'local',fullName:'João Fonseca',role:'admin',modules:['people','finance','transit','administrative'],storeAccess:['*']}
   const response=await fetch('/api/auth/session',{headers:{Accept:'application/json'}})
   if(!response.ok)return null
   const data=await response.json() as {user?:{id:number;username:string;fullName?:string;full_name?:string;role:'admin'|'operator';modules?:unknown;storeAccess?:unknown;store_access?:unknown}}
   if(!data.user)return null
-  return {id:data.user.id,username:data.user.username,fullName:data.user.fullName||data.user.full_name||data.user.username,role:data.user.role,modules:normalizeModules(data.user.modules),storeAccess:normalizeStores(data.user.storeAccess||data.user.store_access)}
+  const modules=normalizeModules(data.user.modules)
+  if(data.user.role==='admin'&&!modules.includes('administrative'))modules.push('administrative')
+  return {id:data.user.id,username:data.user.username,fullName:data.user.fullName||data.user.full_name||data.user.username,role:data.user.role,modules,storeAccess:normalizeStores(data.user.storeAccess||data.user.store_access)}
 }
 export async function cloudLogout(){if(cloudEnabled())await fetch('/api/auth/logout',{method:'POST'})}
 

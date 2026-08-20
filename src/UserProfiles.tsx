@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CreditCard, DollarSign, Pencil, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { CreditCard, DollarSign, FileText, Pencil, ShieldCheck, UserPlus, Users } from "lucide-react";
 import {
   createCloudUser,
   listCloudUsers,
@@ -39,6 +39,7 @@ const moduleOptions: Array<{
   { value: "people", label: "RH", description: "Pessoas, ocorrências e relatórios", icon: Users },
   { value: "finance", label: "Financeiro", description: "Folha, pagamentos e relatórios", icon: DollarSign },
   { value: "transit", label: "Cartões de passagem", description: "Recargas, calendário e transporte", icon: CreditCard },
+  { value: "administrative", label: "Administrativo", description: "Recibos, advertências e documentos", icon: FileText },
 ];
 
 export default function UserProfiles({ stores }: { stores: string[] }) {
