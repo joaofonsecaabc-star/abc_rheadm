@@ -3,18 +3,33 @@
 @tailwind utilities;
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: #dfe3e6; color: #111827; }
+body { margin: 0; min-width: 320px; background: #f4f6f6; color: #111827; }
 html { color-scheme: light; }
 html.dark { color-scheme: dark; }
 html.dark body { background: #0f1115; color: #e5e7eb; }
-html:not(.dark) .bg-white { background-color: #f2f3f2 !important; }
-html:not(.dark) .bg-slate-50 { background-color: #e2e6e9 !important; }
-html:not(.dark) .bg-slate-100 { background-color: #d9dee2 !important; }
+html:not(.dark) .bg-white { background-color: #ffffff !important; }
+html:not(.dark) .bg-slate-50 { background-color: #f8fafc !important; }
+html:not(.dark) .bg-slate-100 { background-color: #eef2f6 !important; }
 html:not(.dark) .border-slate-100,
-html:not(.dark) .border-slate-200 { border-color: #cbd2d8 !important; }
+html:not(.dark) .border-slate-200 { border-color: #d5dde5 !important; }
 html:not(.dark) input,
 html:not(.dark) select,
-html:not(.dark) textarea { background-color: #f6f6f4 !important; }
+html:not(.dark) textarea { background-color: #ffffff !important; }
+html:not(.dark) .shadow-soft {
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .055) !important;
+}
+html:not(.dark) .fade-in > main,
+html:not(.dark) main.fade-in { color: #172033; }
+html:not(.dark) .fade-in table tbody tr { transition: background-color .18s ease; }
+html:not(.dark) .fade-in table tbody tr:hover { background-color: #f8fafc; }
+html:not(.dark) .fade-in .overflow-hidden.rounded-2xl > .bg-slate-800 {
+  background: #ffffff !important;
+  color: #172033 !important;
+  border-bottom: 1px solid #d5dde5;
+  text-align: left !important;
+}
+html:not(.dark) .fade-in .rounded-2xl,
+html:not(.dark) .fade-in .rounded-3xl { border-color: #d5dde5 !important; }
 html.dark .bg-white { background-color: #181b20 !important; }
 html.dark .bg-slate-50 { background-color: #20242a !important; }
 html.dark .bg-slate-100 { background-color: #292e35 !important; }
