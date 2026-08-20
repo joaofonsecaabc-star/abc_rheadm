@@ -7764,7 +7764,13 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
   const [reason, setReason] = useState(
     "falta injustificada, sem apresentação de justificativa válida",
   );
+  const [warningPersonMode, setWarningPersonMode] = useState<"registered" | "manual">("registered");
+  const [warningManualName, setWarningManualName] = useState("");
+  const [warningManualCpf, setWarningManualCpf] = useState("");
   const [receiptEmployeeId, setReceiptEmployeeId] = useState("");
+  const [receiptPersonMode, setReceiptPersonMode] = useState<"registered" | "manual">("registered");
+  const [receiptManualName, setReceiptManualName] = useState("");
+  const [receiptManualCpf, setReceiptManualCpf] = useState("");
   const [receiptCompany, setReceiptCompany] = useState("");
   const [receiptDate, setReceiptDate] = useState(today);
   const [receiptKind, setReceiptKind] = useState<"salary" | "advance">("salary");
@@ -7777,6 +7783,16 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
     .filter((employee) => employee.active !== false)
     .sort((a, b) => a.employee.localeCompare(b.employee, "pt-BR"));
   const receiptEmployee = employees.find((employee) => String(employee.id) === receiptEmployeeId);
+  const warningPerson = warningPersonMode === "registered"
+    ? selected
+    : warningManualName.trim()
+      ? { employee: warningManualName.trim(), cpf: warningManualCpf.trim() }
+      : undefined;
+  const receiptPerson = receiptPersonMode === "registered"
+    ? receiptEmployee
+    : receiptManualName.trim()
+      ? { employee: receiptManualName.trim(), cpf: receiptManualCpf.trim() }
+      : undefined;
   useEffect(() => {
     const entry = financialEntries.find((item) => item.employeeId === Number(receiptEmployeeId) && item.period === receiptPeriod);
     if (!entry) return;
@@ -7792,8 +7808,8 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
     });
   };
   const generateWarning = () => {
-    if (!selected || !documentDate || !occurrenceDate || !reason.trim()) {
-      alert("Selecione o funcionário e preencha a data e o motivo.");
+    if (!warningPerson || !warningPerson.cpf || !documentDate || !occurrenceDate || !reason.trim()) {
+      alert("Selecione um funcionário ou informe nome e CPF, além das datas e do motivo.");
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -7807,8 +7823,8 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
     doc.setFontSize(10.5);
     doc.text("Empresa: HLM GESTÃO LTDA - CNPJ: 55.566.792/0001-58", left, 42);
     doc.setFont("helvetica", "normal");
-    doc.text(`Funcionário(a): ${selected.employee}`, left, 55);
-    doc.text(`CPF: ${selected.cpf || "Não informado"}`, left, 63);
+    doc.text(`Funcionário(a): ${warningPerson.employee}`, left, 55);
+    doc.text(`CPF: ${warningPerson.cpf}`, left, 63);
     const body =
       `Vimos, pelo presente, aplicar-lhe advertência disciplinar pelo fato de que foi apurado que, em ${longDate(occurrenceDate)}, ocorreu ${reason.trim()}. Tal conduta representa descumprimento das obrigações inerentes ao contrato de trabalho e poderá caracterizar desídia no desempenho das funções, na forma do art. 482, letra “e”, da Consolidação das Leis do Trabalho (CLT).`;
     const warning =
@@ -7841,7 +7857,7 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
     doc.line(119, 270, 184, 270);
     doc.text("Nome", 55.5, 276, { align: "center" });
     doc.text("CPF", 151.5, 276, { align: "center" });
-    const safeName = selected.employee
+    const safeName = warningPerson.employee
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-zA-Z0-9]+/g, "-")
@@ -7855,8 +7871,8 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
   const generateReceipt = () => {
     const gross = parseMoney(receiptGross), discount = parseMoney(receiptDiscount), advance = parseMoney(receiptAdvance);
     const amount = receiptKind === "salary" ? Math.max(0, gross - discount - advance) : advance;
-    if (!receiptEmployee || !receiptCompany || !receiptDate || !receiptPeriod || !amount) {
-      alert("Preencha funcionário, empresa, competência, data e valores do recibo.");
+    if (!receiptPerson || !receiptPerson.cpf || !receiptCompany || !receiptDate || !receiptPeriod || !amount) {
+      alert("Selecione um funcionário ou informe nome e CPF, além da empresa, competência, data e valores.");
       return;
     }
     const cnpj = companyCnpjs[receiptCompany] || "CNPJ não informado";
@@ -7902,9 +7918,9 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
     doc.text(`Belo Horizonte, ${receiptDateText}.`, 25, 218);
     doc.line(25, 245, 185, 245);
     doc.setFont("helvetica", "bold");
-    doc.text(`Assinatura do(a) empregado(a): ${receiptEmployee.employee}`, 25, 255);
-    doc.text(`CPF: ${receiptEmployee.cpf || "não informado"}`, 25, 265);
-    const safeName = receiptEmployee.employee.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    doc.text(`Assinatura do(a) empregado(a): ${receiptPerson.employee}`, 25, 255);
+    doc.text(`CPF: ${receiptPerson.cpf}`, 25, 265);
+    const safeName = receiptPerson.employee.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
     doc.save(`recibo-${receiptKind === "salary" ? "salario" : "adiantamento"}-${safeName}-${receiptDate}.pdf`);
     window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Recibo gerado com sucesso" }));
   };
@@ -7925,7 +7941,18 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
         </div>
         <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
           <div className="sm:col-span-2 grid grid-cols-2 rounded-xl bg-slate-100 p-1"><button type="button" onClick={() => setReceiptKind("salary")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptKind === "salary" ? "bg-white shadow-sm" : "text-slate-500"}`}>Recibo de salário</button><button type="button" onClick={() => setReceiptKind("advance")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptKind === "advance" ? "bg-white shadow-sm" : "text-slate-500"}`}>Recibo de adiantamento</button></div>
-          <label><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}</select></label>
+          <div className="sm:col-span-2 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+            <button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptPersonMode === "registered" ? "bg-white shadow-sm" : "text-slate-500"}`}>Funcionário cadastrado</button>
+            <button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptPersonMode === "manual" ? "bg-white shadow-sm" : "text-slate-500"}`}>Preencher manualmente</button>
+          </div>
+          {receiptPersonMode === "registered" ? (
+            <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}</select></label>
+          ) : (
+            <>
+              <label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={receiptManualName} onChange={(event) => setReceiptManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
+              <label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={receiptManualCpf} onChange={(event) => setReceiptManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
+            </>
+          )}
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione a empresa</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select>{!companies.length && <span className="mt-1 block text-xs text-amber-600">Cadastre a empresa e o CNPJ em Configurações → Empresas.</span>}</label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Competência</span><input type="month" value={receiptPeriod} onChange={(event) => setReceiptPeriod(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Data</span><input type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
@@ -7950,21 +7977,24 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
           </div>
         </div>
         <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
-          <label className="sm:col-span-2">
-            <span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span>
-            <select
-              value={employeeId}
-              onChange={(event) => setEmployeeId(event.target.value)}
-              className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500"
-            >
-              <option value="">Selecione o funcionário</option>
-              {activeEmployees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.employee}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="sm:col-span-2 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+            <button type="button" onClick={() => setWarningPersonMode("registered")} className={`rounded-lg px-4 py-3 text-sm font-bold ${warningPersonMode === "registered" ? "bg-white shadow-sm" : "text-slate-500"}`}>Funcionário cadastrado</button>
+            <button type="button" onClick={() => setWarningPersonMode("manual")} className={`rounded-lg px-4 py-3 text-sm font-bold ${warningPersonMode === "manual" ? "bg-white shadow-sm" : "text-slate-500"}`}>Preencher manualmente</button>
+          </div>
+          {warningPersonMode === "registered" ? (
+            <label className="sm:col-span-2">
+              <span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span>
+              <select value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500">
+                <option value="">Selecione o funcionário</option>
+                {activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}
+              </select>
+            </label>
+          ) : (
+            <>
+              <label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={warningManualName} onChange={(event) => setWarningManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
+              <label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={warningManualCpf} onChange={(event) => setWarningManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
+            </>
+          )}
           <label>
             <span className="mb-2 block text-sm font-bold text-slate-700">Data da ocorrência</span>
             <input
@@ -7993,10 +8023,10 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
               className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
             />
           </label>
-          {selected && (
+          {warningPerson && (
             <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-              <b>{selected.employee}</b>
-              <span className="ml-2 text-slate-500">CPF: {selected.cpf || "não informado"}</span>
+              <b>{warningPerson.employee}</b>
+              <span className="ml-2 text-slate-500">CPF: {warningPerson.cpf || "não informado"}</span>
             </div>
           )}
           <div className="sm:col-span-2 flex justify-end">
