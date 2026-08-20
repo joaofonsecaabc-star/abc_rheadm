@@ -8198,7 +8198,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
         <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-slate-800 px-6 py-5 text-white">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10 text-white"><ReceiptText size={21} /></span>
-            <div><h2 className="text-xl font-black">{page === "Salário" ? "Recibo de salário" : "Recibo de adiantamento"}</h2><p className="text-sm text-slate-300">{page === "Salário" ? "Informe o período, confira o cálculo e gere o documento." : "Preencha os dados do adiantamento e gere o documento."}</p></div>
+            <div><h2 className="text-xl font-black">{page === "Salário" ? "Recibo de Salário" : "Recibo de Adiantamento"}</h2><p className="text-sm text-slate-300">{page === "Salário" ? "Informe o período, confira o cálculo e gere o documento." : "Preencha os dados do adiantamento e gere o documento."}</p></div>
           </div>
         </div>
         <div className="grid gap-x-5 gap-y-4 p-6 sm:grid-cols-2">
