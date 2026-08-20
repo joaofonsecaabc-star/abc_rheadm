@@ -7892,10 +7892,13 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   }, [receiptPeriod]);
   useEffect(() => {
     const entry = financialEntries.find((item) => item.employeeId === Number(receiptEmployeeId) && item.period === receiptPeriod);
-    if (!entry) return;
+    if (!entry) {
+      if (receiptKind === "salary") setReceiptAdvance("");
+      return;
+    }
     setReceiptGross(formatMoneyInput(String(Math.round(Number(entry.salary || 0) * 100))));
-    setReceiptAdvance(formatMoneyInput(String(Math.round(Number(entry.advance || 0) * 100))));
-  }, [receiptEmployeeId, receiptPeriod, financialEntries]);
+    setReceiptAdvance(receiptKind === "advance" ? formatMoneyInput(String(Math.round(Number(entry.advance || 0) * 100))) : "");
+  }, [receiptEmployeeId, receiptPeriod, financialEntries, receiptKind]);
   const longDate = (value: string) => {
     if (!value) return "";
     return new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
@@ -8079,8 +8082,10 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
         const suffix = item.mode === "percent" ? ` (${parseMoney(item.value).toLocaleString("pt-BR")}% do bruto)` : "";
         doc.text(`- ${item.name.trim() || "Desconto"}${suffix}`, 30, detailY); doc.text(currency(value), 155, detailY);
       });
-      detailY += 7;
-      doc.text(`- Adiantamento 20/${String(month).padStart(2, "0")}`, 30, detailY); doc.text(currency(advance), 155, detailY);
+      if (advance > 0) {
+        detailY += 7;
+        doc.text(`- Adiantamento 20/${String(month).padStart(2, "0")}`, 30, detailY); doc.text(currency(advance), 155, detailY);
+      }
       detailY += 10;
       doc.setFont("helvetica", "bold"); doc.text("Total recebido", 30, detailY); doc.text(currency(amount), 155, detailY);
     } else {
@@ -8209,10 +8214,14 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
                   <button type="button" onClick={() => setReceiptDiscounts(receiptDiscounts.filter((discount) => discount.id !== item.id))} className="h-11 rounded-lg px-3 text-xs font-bold text-red-500">Remover</button>
                 </div>)}
                 {!receiptDiscounts.length && <p className="py-2 text-center text-xs text-slate-400">Nenhum desconto incluído.</p>}
+                <div className="grid gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 sm:grid-cols-[1fr_220px] sm:items-center">
+                  <div><b className="text-sm text-violet-900">Adiantamento já pago</b><p className="text-xs text-violet-700">Será descontado do salário e só aparecerá no recibo quando houver valor.</p></div>
+                  <input inputMode="decimal" value={receiptAdvance} onChange={(event) => setReceiptAdvance(formatMoneyInput(event.target.value))} placeholder="R$ 0,00" className="h-11 rounded-lg border border-violet-200 bg-white px-3 text-sm font-black" />
+                </div>
               </div>
             </div>
           </>}
-          <label className={receiptKind === "advance" ? "sm:col-span-2" : "sm:col-span-2"}><span className="mb-2 block text-sm font-bold text-slate-700">{receiptKind === "salary" ? "Adiantamento já pago" : "Valor do adiantamento"}</span><input inputMode="decimal" value={receiptAdvance} onChange={(event) => setReceiptAdvance(formatMoneyInput(event.target.value))} placeholder="0,00" className="h-12 w-full rounded-xl border border-slate-200 px-4 font-bold" /></label>
+          {receiptKind === "advance" && <label className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Valor do adiantamento</span><input inputMode="decimal" value={receiptAdvance} onChange={(event) => setReceiptAdvance(formatMoneyInput(event.target.value))} placeholder="R$ 0,00" className="h-14 w-full rounded-xl border border-slate-200 px-4 text-lg font-black" /></label>}
           {receiptKind === "salary" && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4"><span className="text-sm text-slate-500">Valor líquido do recibo</span><b className="mt-1 block text-xl">{Math.max(0, proportionalSalary - receiptDiscountTotal - parseMoney(receiptAdvance)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b><span className="mt-1 block text-xs text-slate-500">Total de descontos: {receiptDiscountTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div>}
           <div className="sm:col-span-2 flex justify-end rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><button type="button" onClick={generateReceipt} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-4 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"><Download size={19} />Gerar recibo de {receiptKind === "salary" ? "salário" : "adiantamento"}</button></div>
         </div>
