@@ -7907,44 +7907,56 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10.5);
-    doc.text(receiptCompany.toUpperCase(), 25, 25);
-    doc.text(`CNPJ: ${cnpj}`, 25, 31);
-    doc.line(25, 48, 185, 48);
-    doc.setFontSize(17);
-    doc.text(receiptKind === "salary" ? "RECIBO DE PAGAMENTO DE SALÁRIO" : "RECIBO DE ADIANTAMENTO SALARIAL", 25, 62);
+    doc.setFontSize(11);
+    doc.text(receiptCompany.toUpperCase(), 30, 25);
+    doc.text(`CNPJ: ${cnpj}`, 30, 31);
+    doc.line(30, 49, 180, 49);
+    doc.setFontSize(16);
+    doc.text(receiptKind === "salary" ? "RECIBO DE PAGAMENTO" : "RECIBO DE ADIANTAMENTO", 30, 65);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text(`Recebi da empresa ${receiptCompany} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })},`, 25, 76);
-    doc.text(receiptKind === "salary" ? `referente ao pagamento de salário do período de ${periodStart} até ${periodEnd}.` : `referente ao adiantamento salarial da competência ${String(month).padStart(2, "0")}/${year}.`, 25, 86);
-    doc.line(25, 100, 185, 100);
+    doc.text(`Empregado(a): ${receiptPerson.employee}`, 30, 78);
+    doc.text(`CPF: ${receiptPerson.cpf}`, 30, 86);
+    const receivedText = `Recebi da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })},`;
+    doc.text(receivedText, 30, 101);
+    const referenceText = receiptKind === "salary"
+      ? `referente ao pagamento de salário do período de ${periodStart} até ${periodEnd}.`
+      : `referente ao adiantamento salarial da competência ${String(month).padStart(2, "0")}/${year}.`;
+    doc.text(referenceText, 30, 110);
+    doc.line(30, 124, 180, 124);
     doc.setFont("helvetica", "bold");
-    doc.text("Descrição", 25, 111);
-    doc.text("Valor (R$)", 155, 111);
+    doc.text("Descrição", 30, 136);
+    doc.text("Valor (R$)", 155, 136);
     doc.setFont("helvetica", "normal");
     const currency = (value: number) => value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (receiptKind === "salary") {
-      doc.text("+ Salário bruto", 25, 123); doc.text(currency(gross), 155, 123);
-      doc.text("- Descontos", 25, 133); doc.text(currency(discount), 155, 133);
-      doc.text("- Adiantamento", 25, 143); doc.text(currency(advance), 155, 143);
-      doc.setFont("helvetica", "bold"); doc.text("= Valor líquido", 25, 155); doc.text(currency(amount), 155, 155);
+      const daysInPeriod = new Date(year, month, 0).getDate();
+      doc.text(`+ Saldo de salário - ${daysInPeriod} dias`, 30, 148); doc.text(currency(gross), 155, 148);
+      doc.text("- Descontos", 30, 158); doc.text(currency(discount), 155, 158);
+      doc.text(`- Adiantamento 20/${String(month).padStart(2, "0")}`, 30, 168); doc.text(currency(advance), 155, 168);
+      doc.setFont("helvetica", "bold"); doc.text("Total recebido", 30, 181); doc.text(currency(amount), 155, 181);
     } else {
-      doc.text("+ Adiantamento salarial", 25, 123); doc.text(currency(advance), 155, 123);
+      doc.text(`+ Adiantamento salarial 20/${String(month).padStart(2, "0")}`, 30, 148); doc.text(currency(advance), 155, 148);
+      doc.setFont("helvetica", "bold"); doc.text("Total recebido", 30, 161); doc.text(currency(amount), 155, 161);
     }
-    doc.line(25, 166, 185, 166);
+    doc.line(30, 190, 180, 190);
     doc.setFont("helvetica", "normal");
-    doc.text("Declaro que recebi a quantia acima discriminada, dando plena, geral e irrevogável", 25, 181);
-    doc.text("quitação dos valores mencionados.", 25, 188);
+    doc.text("Declaro que recebi a quantia acima discriminada, dando plena, geral e irrevogável", 30, 204);
+    doc.text("quitação dos valores mencionados.", 30, 212);
     const receiptDateText = new Date(`${receiptDate}T12:00:00`).toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "long",
       year: "numeric",
     });
-    doc.text(`Belo Horizonte, ${receiptDateText}.`, 25, 218);
-    doc.line(25, 245, 185, 245);
+    doc.line(30, 224, 180, 224);
     doc.setFont("helvetica", "bold");
-    doc.text(`Assinatura do(a) empregado(a): ${receiptPerson.employee}`, 25, 255);
-    doc.text(`CPF: ${receiptPerson.cpf}`, 25, 265);
+    doc.text(`Belo Horizonte, ${receiptDateText}.`, 30, 239);
+    doc.line(30, 260, 180, 260);
+    doc.setFont("helvetica", "bold");
+    doc.text("Assinatura do(a) empregado(a)", 30, 269);
+    doc.setFont("helvetica", "normal");
+    doc.text(receiptPerson.employee, 30, 277);
+    doc.text(`CPF: ${receiptPerson.cpf}`, 30, 285);
     const safeName = receiptPerson.employee.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
     doc.save(`recibo-${receiptKind === "salary" ? "salario" : "adiantamento"}-${safeName}-${receiptDate}.pdf`);
     window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Recibo gerado com sucesso" }));
