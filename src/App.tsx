@@ -430,6 +430,53 @@ const formatMoneyInput = (value: string) => {
 };
 const parseMoney = (value: string) =>
   Number(value.replace(/\./g, "").replace(",", ".")) || 0;
+const numberUnderThousandInWords = (value: number) => {
+  const units = ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const teens = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const tens = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const hundreds = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+  if (value === 0) return "zero";
+  if (value === 100) return "cem";
+  const parts: string[] = [];
+  const hundred = Math.floor(value / 100), remainder = value % 100;
+  if (hundred) parts.push(hundreds[hundred]);
+  if (remainder) {
+    if (remainder < 10) parts.push(units[remainder]);
+    else if (remainder < 20) parts.push(teens[remainder - 10]);
+    else {
+      const ten = Math.floor(remainder / 10), unit = remainder % 10;
+      parts.push(unit ? `${tens[ten]} e ${units[unit]}` : tens[ten]);
+    }
+  }
+  return parts.join(" e ");
+};
+const integerInWords = (value: number) => {
+  if (value === 0) return "zero";
+  const groups = [
+    { size: 1_000_000_000, singular: "bilhão", plural: "bilhões" },
+    { size: 1_000_000, singular: "milhão", plural: "milhões" },
+    { size: 1_000, singular: "mil", plural: "mil" },
+  ];
+  let remaining = Math.floor(value);
+  const parts: string[] = [];
+  groups.forEach((group) => {
+    const count = Math.floor(remaining / group.size);
+    if (!count) return;
+    if (group.size === 1_000 && count === 1) parts.push("mil");
+    else parts.push(`${numberUnderThousandInWords(count)} ${count === 1 ? group.singular : group.plural}`);
+    remaining %= group.size;
+  });
+  if (remaining) parts.push(numberUnderThousandInWords(remaining));
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} e ${parts[parts.length - 1]}` : parts[0];
+};
+const moneyInWords = (value: number) => {
+  const totalCents = Math.round(Math.max(0, value) * 100);
+  const reais = Math.floor(totalCents / 100), cents = totalCents % 100;
+  const parts: string[] = [];
+  if (reais) parts.push(`${integerInWords(reais)} ${reais === 1 ? "real" : "reais"}`);
+  if (cents) parts.push(`${integerInWords(cents)} ${cents === 1 ? "centavo" : "centavos"}`);
+  return parts.length ? parts.join(" e ") : "zero reais";
+};
 const capitalizeMonth = (value: string) =>
   value.charAt(0).toUpperCase() + value.slice(1);
 const isWorkDay = (employee: Recharge, date: Date) => {
@@ -7940,19 +7987,24 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setFontSize(11);
     doc.text(`Empregado(a): ${receiptPerson.employee}`, 30, 78);
     doc.text(`CPF: ${receiptPerson.cpf}`, 30, 86);
-    const receivedText = `Recebi da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })},`;
-    doc.text(receivedText, 30, 101);
+    const receivedText = `Recebi da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${moneyInWords(amount)}),`;
+    const receivedLines = doc.splitTextToSize(receivedText, 150);
+    doc.text(receivedLines, 30, 101, { lineHeightFactor: 1.35 });
     const referenceText = receiptKind === "salary"
       ? `referente ao pagamento de salário do período de ${periodStart} até ${periodEnd}.`
       : `referente ao adiantamento salarial da competência ${String(month).padStart(2, "0")}/${year}.`;
-    doc.text(referenceText, 30, 110);
-    doc.line(30, 124, 180, 124);
+    const referenceY = 101 + receivedLines.length * 5.5 + 3;
+    const referenceLines = doc.splitTextToSize(referenceText, 150);
+    doc.text(referenceLines, 30, referenceY, { lineHeightFactor: 1.35 });
+    const tableLineY = referenceY + referenceLines.length * 5.5 + 8;
+    doc.line(30, tableLineY, 180, tableLineY);
     doc.setFont("helvetica", "bold");
-    doc.text("Descrição", 30, 136);
-    doc.text("Valor (R$)", 155, 136);
+    const tableHeaderY = tableLineY + 12;
+    doc.text("Descrição", 30, tableHeaderY);
+    doc.text("Valor (R$)", 155, tableHeaderY);
     doc.setFont("helvetica", "normal");
     const currency = (value: number) => value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    let detailY = 148;
+    let detailY = tableHeaderY + 12;
     if (receiptKind === "salary") {
       const daysInPeriod = new Date(year, month, 0).getDate();
       doc.text(`+ Saldo de salário - ${daysInPeriod} dias`, 30, detailY); doc.text(currency(gross), 155, detailY);
@@ -8013,7 +8065,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.text(`CNPJ: ${companyCnpjs[receiptCompany] || "não informado"}`, 25, 78);
     doc.setFont("helvetica", "normal");
     doc.text(`EU, ${receiptPerson.employee.toUpperCase()}, CPF ${receiptPerson.cpf},`, 25, 98);
-    const declaration = `DECLARO QUE RECEBI da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}, referente a: ${genericReference.trim()}.`;
+    const declaration = `DECLARO QUE RECEBI da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${moneyInWords(amount)}), referente a: ${genericReference.trim()}.`;
     doc.text(doc.splitTextToSize(declaration, 160), 25, 114, { lineHeightFactor: 1.5 });
     const dateText = new Date(`${receiptDate}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     doc.text(`Belo Horizonte, ${dateText}.`, 25, 165);
