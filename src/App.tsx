@@ -380,6 +380,31 @@ const administrativeNav = [
   ["Advertência", TriangleAlert],
   ["Recibo", ReceiptText],
 ] as const;
+let groupLogoDataPromise: Promise<string> | null = null;
+const loadGroupLogo = () => {
+  if (!groupLogoDataPromise) {
+    groupLogoDataPromise = fetch("/grupo-abc-vera-cruz.png")
+      .then((response) => {
+        if (!response.ok) throw new Error("Logo não encontrada");
+        return response.blob();
+      })
+      .then((blob) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      }));
+  }
+  return groupLogoDataPromise;
+};
+const addGroupLogo = async (doc: jsPDF, x: number, y: number, width = 42) => {
+  try {
+    const data = await loadGroupLogo();
+    doc.addImage(data, "PNG", x, y, width, width / 1.78);
+  } catch (error) {
+    console.warn("Não foi possível adicionar a logo ao documento", error);
+  }
+};
 const formatCpf = (value: string) =>
   value
     .replace(/\D/g, "")
@@ -7828,12 +7853,13 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       setGeneratingReason(false);
     }
   };
-  const generateWarning = () => {
+  const generateWarning = async () => {
     if (!warningPerson || !warningPerson.cpf || !documentDate || !occurrenceDate || !reason.trim()) {
       alert("Selecione um funcionário ou informe nome e CPF, além das datas e do motivo.");
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    await addGroupLogo(doc, 23, 13, 36);
     const left = 23,
       right = 187,
       width = right - left;
@@ -7889,7 +7915,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       new CustomEvent("abc:toast", { detail: "Advertência gerada com sucesso" }),
     );
   };
-  const generateReceipt = () => {
+  const generateReceipt = async () => {
     const gross = parseMoney(receiptGross), discount = receiptDiscountTotal, advance = parseMoney(receiptAdvance);
     const amount = receiptKind === "salary" ? Math.max(0, gross - discount - advance) : advance;
     if (!receiptPerson || !receiptPerson.cpf || !receiptCompany || !receiptDate || !receiptPeriod || !amount) {
@@ -7901,11 +7927,12 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const periodStart = new Date(year, month - 1, 1, 12).toLocaleDateString("pt-BR");
     const periodEnd = new Date(year, month, 0, 12).toLocaleDateString("pt-BR");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    await addGroupLogo(doc, 30, 14, 36);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text(receiptCompany.toUpperCase(), 30, 25);
-    doc.text(`CNPJ: ${cnpj}`, 30, 31);
+    doc.text(receiptCompany.toUpperCase(), 74, 25);
+    doc.text(`CNPJ: ${cnpj}`, 74, 31);
     doc.line(30, 49, 180, 49);
     doc.setFontSize(16);
     doc.text(receiptKind === "salary" ? "RECIBO DE PAGAMENTO" : "RECIBO DE ADIANTAMENTO", 30, 65);
@@ -7969,24 +7996,25 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.save(`recibo-${receiptKind === "salary" ? "salario" : "adiantamento"}-${safeName}-${receiptDate}.pdf`);
     window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Recibo gerado com sucesso" }));
   };
-  const generateGenericReceipt = () => {
+  const generateGenericReceipt = async () => {
     const amount = parseMoney(genericAmount);
     if (!receiptPerson || !receiptPerson.cpf || !receiptCompany || !receiptDate || !amount || !genericReference.trim()) {
       alert("Preencha nome, CPF, loja, data, valor e a referência do recibo.");
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    await addGroupLogo(doc, 79, 15, 52);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.text("RECIBO", 105, 36, { align: "center" });
+    doc.text("RECIBO", 105, 54, { align: "center" });
     doc.setFontSize(11);
-    doc.text(receiptCompany.toUpperCase(), 25, 55);
-    doc.text(`CNPJ: ${companyCnpjs[receiptCompany] || "não informado"}`, 25, 63);
+    doc.text(receiptCompany.toUpperCase(), 25, 70);
+    doc.text(`CNPJ: ${companyCnpjs[receiptCompany] || "não informado"}`, 25, 78);
     doc.setFont("helvetica", "normal");
-    doc.text(`EU, ${receiptPerson.employee.toUpperCase()}, CPF ${receiptPerson.cpf},`, 25, 86);
+    doc.text(`EU, ${receiptPerson.employee.toUpperCase()}, CPF ${receiptPerson.cpf},`, 25, 98);
     const declaration = `DECLARO QUE RECEBI da empresa ${receiptCompany.toUpperCase()} a importância de ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}, referente a: ${genericReference.trim()}.`;
-    doc.text(doc.splitTextToSize(declaration, 160), 25, 102, { lineHeightFactor: 1.5 });
+    doc.text(doc.splitTextToSize(declaration, 160), 25, 114, { lineHeightFactor: 1.5 });
     const dateText = new Date(`${receiptDate}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     doc.text(`Belo Horizonte, ${dateText}.`, 25, 165);
     doc.line(35, 210, 175, 210);
