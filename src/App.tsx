@@ -94,6 +94,106 @@ function ActionToast() {
   );
 }
 
+function SearchableEmployeeSelect({
+  employees,
+  value,
+  onChange,
+  placeholder = "Pesquisar funcionário...",
+  required = false,
+  className = "",
+}: {
+  employees: Recharge[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const preserveTypedQueryRef = useRef(false);
+  const selectedEmployee = employees.find((employee) => String(employee.id) === value);
+  const [query, setQuery] = useState(selectedEmployee?.employee || "");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (preserveTypedQueryRef.current) {
+      preserveTypedQueryRef.current = false;
+      return;
+    }
+    setQuery(selectedEmployee?.employee || "");
+  }, [value, selectedEmployee?.employee]);
+
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  const normalizedQuery = query.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const matches = normalizedQuery
+    ? employees.filter((employee) => employee.employee
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .includes(normalizedQuery))
+    : [];
+
+  return (
+    <div ref={rootRef} className={`relative ${className}`}>
+      <Search className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-400" size={18} />
+      <input
+        required={required}
+        value={query}
+        onFocus={(event) => {
+          setOpen(true);
+          event.currentTarget.select();
+        }}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          preserveTypedQueryRef.current = true;
+          onChange("");
+          setOpen(true);
+        }}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="h-12 w-full rounded-xl border border-slate-300 bg-white py-2 pl-11 pr-10 font-semibold text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+      />
+      {query && (
+        <button
+          type="button"
+          aria-label="Limpar funcionário"
+          onClick={() => { setQuery(""); preserveTypedQueryRef.current = true; onChange(""); setOpen(true); }}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+        >
+          <X size={16} />
+        </button>
+      )}
+      {open && normalizedQuery && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[120] max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl">
+          {matches.length ? matches.slice(0, 30).map((employee) => (
+            <button
+              type="button"
+              key={employee.id}
+              onClick={() => {
+                onChange(String(employee.id));
+                setQuery(employee.employee);
+                setOpen(false);
+              }}
+              className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100"
+            >
+              {employee.employee}
+            </button>
+          )) : (
+            <p className="px-3 py-3 text-sm text-slate-500">Nenhum funcionário encontrado.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function usePopupBackgroundLock() {
   useEffect(() => {
     const body = document.body,
@@ -4290,23 +4390,13 @@ function RechargeHistoryPage({
       />
       <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
         <div className="flex flex-col gap-3 md:flex-row">
-          <select
+          <SearchableEmployeeSelect
+            employees={employees.filter((employee) => employee.active !== false)}
             value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm"
-          >
-            <option value="">
-              Selecione o funcionário para uma recarga manual
-            </option>
-            {employees
-              .filter((e) => e.active !== false)
-              .sort((a, b) => a.employee.localeCompare(b.employee))
-              .map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.employee}
-                </option>
-              ))}
-          </select>
+            onChange={setEmployeeId}
+            placeholder="Pesquisar funcionário para recarga manual..."
+            className="min-w-0 flex-1"
+          />
           <button
             disabled={!employeeId}
             onClick={() => {
@@ -7612,19 +7702,14 @@ function OccurrencesPage({
           onSubmit={add}
           className="mt-5 grid items-end gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft md:grid-cols-2 xl:grid-cols-6"
         >
-          <select
+          <SearchableEmployeeSelect
             required
+            employees={eligible}
             value={form.employeeId}
-            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-            className="h-12 w-full rounded-xl border border-slate-200 px-3 md:col-span-2"
-          >
-            <option value="">Funcionário</option>
-            {eligible.map((e) => (
-              <option value={e.id} key={e.id}>
-                {e.employee}
-              </option>
-            ))}
-          </select>
+            onChange={(employeeId) => setForm({ ...form, employeeId })}
+            placeholder="Pesquisar funcionário..."
+            className="md:col-span-2"
+          />
           <label className="text-xs font-semibold text-slate-600">
             {form.type === "Férias" ? "Início das férias" : "Data"}
             <input
@@ -8222,7 +8307,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
             </div>
           </div>
           {receiptPersonMode === "registered" ? (
-            <label className="sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 font-semibold shadow-sm"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}</select></label>
+            <label className="sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Funcionário</span><SearchableEmployeeSelect employees={activeEmployees} value={receiptEmployeeId} onChange={setReceiptEmployeeId} /></label>
           ) : (
             <>
               <label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={receiptManualName} onChange={(event) => setReceiptManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
@@ -8282,7 +8367,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
         <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-slate-800 px-6 py-5 text-white"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><ReceiptText size={21} /></span><div><h2 className="text-xl font-black">Recibo simples</h2><p className="text-sm text-slate-300">Informe recebedor, pagamento e referência.</p></div></div></div>
         <div className="grid gap-x-5 gap-y-4 p-6 sm:grid-cols-2">
           <div className="sm:col-span-2 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between"><div><b className="text-sm text-slate-900">1. Identificação</b><p className="text-xs text-slate-500">Escolha um funcionário ou preencha os dados manualmente.</p></div><div className="administrative-segmented grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]"><button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "registered" ? "administrative-tab-active bg-white text-slate-950 shadow-sm" : "administrative-tab-inactive text-slate-500"}`}>Funcionário cadastrado</button><button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "manual" ? "administrative-tab-active bg-white text-slate-950 shadow-sm" : "administrative-tab-inactive text-slate-500"}`}>Preencher manualmente</button></div></div>
-          {receiptPersonMode === "registered" ? <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}</select></label> : <><label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={receiptManualName} onChange={(event) => setReceiptManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label><label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={receiptManualCpf} onChange={(event) => setReceiptManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label></>}
+          {receiptPersonMode === "registered" ? <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><SearchableEmployeeSelect employees={activeEmployees} value={receiptEmployeeId} onChange={setReceiptEmployeeId} /></label> : <><label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={receiptManualName} onChange={(event) => setReceiptManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label><label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={receiptManualCpf} onChange={(event) => setReceiptManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label></>}
           <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">2. Documento</b><p className="text-xs text-slate-500">Defina a empresa e a data do recibo.</p></div>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Loja / empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 shadow-sm"><option value="">Selecione a loja</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Data do recibo</span><input type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
@@ -8317,10 +8402,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           {warningPersonMode === "registered" ? (
             <label className="sm:col-span-2">
               <span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span>
-              <select value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500">
-                <option value="">Selecione o funcionário</option>
-                {activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}
-              </select>
+              <SearchableEmployeeSelect employees={activeEmployees} value={employeeId} onChange={setEmployeeId} />
             </label>
           ) : (
             <>
