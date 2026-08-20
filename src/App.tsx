@@ -8299,37 +8299,37 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           </label>
           <label className="sm:col-span-2">
             <span className="mb-2 block text-sm font-bold text-slate-700">Conte resumidamente o que aconteceu</span>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div>
               <textarea
                 rows={3}
                 value={warningSummary}
                 onChange={(event) => setWarningSummary(event.target.value)}
                 placeholder="Ex.: o funcionário faltou ao trabalho no dia informado e não apresentou justificativa"
-                className="min-h-24 flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
+                className="min-h-24 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
               />
-              <button
-                type="button"
-                onClick={generateReasonWithAI}
-                disabled={generatingReason}
-                className="flex h-11 shrink-0 items-center justify-center gap-2 self-end rounded-xl bg-slate-900 px-4 text-sm font-bold text-white shadow-sm hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60 sm:self-start"
-              >
-                <Sparkles size={18} />
-                {generatingReason ? "Criando..." : "Criar com IA"}
-              </button>
+              <div className="mt-2 flex justify-end"><button
+                  type="button"
+                  onClick={generateReasonWithAI}
+                  disabled={generatingReason}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shadow-sm hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60"
+                >
+                  <Sparkles size={15} />
+                  {generatingReason ? "Criando..." : "Criar com IA"}
+                </button></div>
             </div>
             <span className="mt-2 block text-xs text-slate-500">A IA apenas organiza o texto informado. Revise o conteúdo antes de gerar o documento.</span>
           </label>
           <label className="sm:col-span-2">
             <span className="mb-2 block text-sm font-bold text-slate-700">Motivo da advertência</span>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div>
               <textarea
                 rows={4}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Descreva de forma objetiva o motivo da advertência"
-                className="min-h-28 flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
+                className="min-h-28 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
               />
-              <button type="button" disabled={improvingWarningReason} onClick={() => void improveAdministrativeText(reason, "warning_reason", setReason, setImprovingWarningReason)} className="flex h-11 shrink-0 items-center justify-center gap-2 self-end rounded-xl bg-slate-900 px-4 text-sm font-bold text-white shadow-sm hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60 sm:self-start"><Sparkles size={17} />{improvingWarningReason ? "Melhorando..." : "Melhorar com IA"}</button>
+              <div className="mt-2 flex justify-end"><button type="button" disabled={improvingWarningReason} onClick={() => void improveAdministrativeText(reason, "warning_reason", setReason, setImprovingWarningReason)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shadow-sm hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60"><Sparkles size={15} />{improvingWarningReason ? "Melhorando..." : "Melhorar com IA"}</button></div>
             </div>
           </label>
           {warningPerson && (
