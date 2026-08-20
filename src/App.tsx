@@ -8311,7 +8311,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
                 type="button"
                 onClick={generateReasonWithAI}
                 disabled={generatingReason}
-                className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white shadow-lg hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
+                className="flex h-11 shrink-0 items-center justify-center gap-2 self-end rounded-xl bg-slate-900 px-4 text-sm font-bold text-white shadow-sm hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60 sm:self-start"
               >
                 <Sparkles size={18} />
                 {generatingReason ? "Criando..." : "Criar com IA"}
@@ -8329,7 +8329,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
                 placeholder="Descreva de forma objetiva o motivo da advertência"
                 className="min-h-28 flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
               />
-              <button type="button" disabled={improvingWarningReason} onClick={() => void improveAdministrativeText(reason, "warning_reason", setReason, setImprovingWarningReason)} className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"><Sparkles size={18} />{improvingWarningReason ? "Melhorando..." : "Melhorar com IA"}</button>
+              <button type="button" disabled={improvingWarningReason} onClick={() => void improveAdministrativeText(reason, "warning_reason", setReason, setImprovingWarningReason)} className="flex h-11 shrink-0 items-center justify-center gap-2 self-end rounded-xl bg-slate-900 px-4 text-sm font-bold text-white shadow-sm hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60 sm:self-start"><Sparkles size={17} />{improvingWarningReason ? "Melhorando..." : "Melhorar com IA"}</button>
             </div>
           </label>
           {warningPerson && (
