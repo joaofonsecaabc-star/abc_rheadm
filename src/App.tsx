@@ -376,7 +376,8 @@ const financeNav = [
   ["Relatórios", FileSpreadsheet],
 ] as const;
 const administrativeNav = [
-  ["Salário e adiantamento", Banknote],
+  ["Salário", Banknote],
+  ["Adiantamento", HandCoins],
   ["Advertência", TriangleAlert],
   ["Recibo", ReceiptText],
 ] as const;
@@ -7845,6 +7846,10 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   const [receiptDiscounts, setReceiptDiscounts] = useState<Array<{ id: number; name: string; mode: "value" | "percent"; value: string }>>([]);
   const [genericAmount, setGenericAmount] = useState("");
   const [genericReference, setGenericReference] = useState("");
+  useEffect(() => {
+    if (page === "Salário") setReceiptKind("salary");
+    if (page === "Adiantamento") setReceiptKind("advance");
+  }, [page]);
   const selected = employees.find((employee) => String(employee.id) === employeeId);
   const activeEmployees = employees
     .filter((employee) => employee.active !== false)
@@ -8103,15 +8108,14 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           Gere documentos padronizados usando os dados dos funcionários.
         </p>
       </div>
-      {page === "Salário e adiantamento" && <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+      {(page === "Salário" || page === "Adiantamento") && <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div className="border-b border-slate-200 px-5 py-5 sm:px-7">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white"><ReceiptText size={21} /></span>
-            <div><h2 className="text-lg font-black">Recibos de pagamento</h2><p className="text-sm text-slate-500">Modelos separados para salário e adiantamento salarial.</p></div>
+            <div><h2 className="text-lg font-black">{page === "Salário" ? "Recibo de salário" : "Recibo de adiantamento"}</h2><p className="text-sm text-slate-500">{page === "Salário" ? "Gere o recibo completo do pagamento mensal." : "Gere o recibo do adiantamento salarial."}</p></div>
           </div>
         </div>
         <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
-          <div className="sm:col-span-2 grid grid-cols-2 rounded-xl bg-slate-100 p-1"><button type="button" onClick={() => setReceiptKind("salary")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptKind === "salary" ? "bg-white shadow-sm" : "text-slate-500"}`}>Recibo de salário</button><button type="button" onClick={() => setReceiptKind("advance")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptKind === "advance" ? "bg-white shadow-sm" : "text-slate-500"}`}>Recibo de adiantamento</button></div>
           <div className="sm:col-span-2 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
             <button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptPersonMode === "registered" ? "bg-white shadow-sm" : "text-slate-500"}`}>Funcionário cadastrado</button>
             <button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptPersonMode === "manual" ? "bg-white shadow-sm" : "text-slate-500"}`}>Preencher manualmente</button>
@@ -8703,7 +8707,7 @@ export default function App() {
         setCompanyCnpjs={setCompanyCnpjs}
       />
     ) : module === "administrative" ? (
-      <AdministrativePage page={administrativeNav.some(([label]) => label === page) ? page : "Salário e adiantamento"} employees={filteredEmployees} companies={stores} companyCnpjs={companyCnpjs} financialEntries={financialEntries} />
+      <AdministrativePage page={administrativeNav.some(([label]) => label === page) ? page : "Salário"} employees={filteredEmployees} companies={stores} companyCnpjs={companyCnpjs} financialEntries={financialEntries} />
     ) : module === "finance" ? (
       page === "Relatórios" ? (
         <FinancialReports
@@ -8889,7 +8893,7 @@ export default function App() {
         select={(choice) => {
           if (!sessionUser?.modules.includes(choice)) return;
           setModule(choice);
-          setPage(choice === "finance" ? "Dashboard" : choice === "administrative" ? "Salário e adiantamento" : "Visão geral");
+          setPage(choice === "finance" ? "Dashboard" : choice === "administrative" ? "Salário" : "Visão geral");
         }}
         onLogout={logout}
         dark={dark}
