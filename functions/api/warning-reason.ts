@@ -6,7 +6,6 @@ const json = (data: unknown, status = 200) => Response.json(data, { status })
 export const onRequestPost = async ({ request, env }: { request: Request; env: any }) => {
   const user = await currentUser(request, env.DB)
   if (!user) return json({ error: 'Sessão expirada.' }, 401)
-
   const body: any = await request.json().catch(() => ({}))
   const description = String(body.description || '').trim()
   if (description.length < 5) return json({ error: 'Descreva resumidamente o que aconteceu.' }, 400)
@@ -20,30 +19,34 @@ Produza apenas um parágrafo curto, sem título, saudação, aspas ou observaç�
 
 Descrição informada: ${description}`
 
+  if (env.AI) {
+    try {
+      const result: any = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8-fast', {
+        messages: [
+          { role: 'system', content: 'Siga rigorosamente as instruções e devolva somente o texto solicitado.' },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 220,
+        temperature: 0.2,
+      })
+      const reason = String(result?.response || '').trim().replace(/^["']|["']$/g, '')
+      if (reason) return json({ reason, provider: 'cloudflare' })
+      console.error('Cloudflare Workers AI returned an empty warning reason')
+    } catch (error) {
+      console.error('Cloudflare Workers AI warning reason error; trying OpenAI fallback', error)
+    }
+  }
+
   try {
     const openAIText = await generateWithOpenAI(env, {
       instructions: 'Você auxilia um setor de Recursos Humanos brasileiro. Siga rigorosamente as instruções, preserve os fatos e devolva somente o texto final solicitado.',
       input: prompt,
       maxOutputTokens: 220,
     })
-    if (openAIText) {
-      const reason = openAIText.trim().replace(/^[\"']|[\"']$/g, '')
-      if (!reason) return json({ error: 'A IA não conseguiu criar o texto. Tente novamente.' }, 502)
-      return json({ reason, provider: 'openai' })
-    }
-    const result: any = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
-      messages: [
-        { role: 'system', content: 'Siga rigorosamente as instruções e devolva somente o texto solicitado.' },
-        { role: 'user', content: prompt },
-      ],
-      max_tokens: 220,
-      temperature: 0.2,
-    })
-    const reason = String(result?.response || '').trim().replace(/^['"]|['"]$/g, '')
-    if (!reason) return json({ error: 'A IA não conseguiu criar o texto. Tente novamente.' }, 502)
-    return json({ reason, provider: 'cloudflare' })
+    const reason = String(openAIText || '').trim().replace(/^["']|["']$/g, '')
+    if (reason) return json({ reason, provider: 'openai' })
   } catch (error) {
-    console.error('warning reason AI error', error)
-    return json({ error: 'Não foi possível gerar o texto com IA agora.' }, 502)
+    console.error('OpenAI warning reason fallback error', error)
   }
+  return json({ error: 'Não foi possível gerar o texto com IA agora.' }, 502)
 }

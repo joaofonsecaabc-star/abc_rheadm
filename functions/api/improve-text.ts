@@ -6,7 +6,6 @@ const json = (data: unknown, status = 200) => Response.json(data, { status })
 export const onRequestPost = async ({ request, env }: { request: Request; env: any }) => {
   const user = await currentUser(request, env.DB)
   if (!user) return json({ error: 'Sessão expirada.' }, 401)
-
   const body: any = await request.json().catch(() => ({}))
   const text = String(body.text || '').trim()
   const context = String(body.context || 'reason')
@@ -17,31 +16,36 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
   const instruction = context === 'receipt_reference'
     ? `Reescreva o texto como uma expressão curta, natural e profissional que complete a frase "referente a ..." em um recibo brasileiro. Evite dois-pontos, título, saudação, aspas e ponto final. Não invente informações. Exemplo: "Vale" pode se tornar "pagamento de vale".`
     : `Reescreva o motivo em português do Brasil, com linguagem profissional, objetiva, neutra e respeitosa. Preserve rigorosamente os fatos informados. Não invente nomes, datas, leis, punições ou circunstâncias. Produza somente um parágrafo, sem título, saudação, aspas ou comentários.`
+  const prompt = `${instruction}\n\nTexto informado: ${text}`
+
+  if (env.AI) {
+    try {
+      const result: any = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8-fast', {
+        messages: [
+          { role: 'system', content: 'Você revisa textos administrativos brasileiros. Responda somente com o texto final solicitado.' },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: context === 'receipt_reference' ? 100 : 260,
+        temperature: 0.25,
+      })
+      const improved = String(result?.response || '').trim().replace(/^["']|["']$/g, '').replace(/\.$/, '')
+      if (improved) return json({ text: improved, provider: 'cloudflare' })
+      console.error('Cloudflare Workers AI returned an empty improved text')
+    } catch (error) {
+      console.error('Cloudflare Workers AI improve text error; trying OpenAI fallback', error)
+    }
+  }
 
   try {
     const openAIText = await generateWithOpenAI(env, {
       instructions: 'Você revisa textos administrativos brasileiros. Preserve integralmente o sentido e os fatos. Responda somente com o texto final solicitado.',
-      input: `${instruction}\n\nTexto informado: ${text}`,
+      input: prompt,
       maxOutputTokens: context === 'receipt_reference' ? 100 : 260,
     })
-    if (openAIText) {
-      const improved = openAIText.trim().replace(/^[\"']|[\"']$/g, '').replace(/\.$/, '')
-      if (!improved) return json({ error: 'A IA não conseguiu melhorar o texto. Tente novamente.' }, 502)
-      return json({ text: improved, provider: 'openai' })
-    }
-    const result: any = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
-      messages: [
-        { role: 'system', content: 'Você revisa textos administrativos brasileiros. Responda somente com o texto final solicitado.' },
-        { role: 'user', content: `${instruction}\n\nTexto informado: ${text}` },
-      ],
-      max_tokens: context === 'receipt_reference' ? 100 : 260,
-      temperature: 0.25,
-    })
-    const improved = String(result?.response || '').trim().replace(/^["']|["']$/g, '').replace(/\.$/, '')
-    if (!improved) return json({ error: 'A IA não conseguiu melhorar o texto. Tente novamente.' }, 502)
-    return json({ text: improved, provider: 'cloudflare' })
+    const improved = String(openAIText || '').trim().replace(/^["']|["']$/g, '').replace(/\.$/, '')
+    if (improved) return json({ text: improved, provider: 'openai' })
   } catch (error) {
-    console.error('improve text AI error', error)
-    return json({ error: 'Não foi possível melhorar o texto com IA agora.' }, 502)
+    console.error('OpenAI improve text fallback error', error)
   }
+  return json({ error: 'Não foi possível melhorar o texto com IA agora.' }, 502)
 }
