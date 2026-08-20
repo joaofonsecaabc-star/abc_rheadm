@@ -48,6 +48,39 @@ html.dark input, html.dark select, html.dark textarea { background-color: #20242
 html.dark table tbody tr:hover { background-color: #20242a !important; }
 html.dark #root > .min-h-screen { background: #0f1115 !important; }
 
+/* O formulário administrativo precisa manter contraste próprio no modo escuro. */
+html.dark .administrative-document {
+  background: #181b20 !important;
+  border-color: #343a43 !important;
+  color: #f1f5f9;
+}
+html.dark .administrative-document > div:not(:first-child) {
+  background: #181b20 !important;
+}
+html.dark .administrative-document .administrative-segmented {
+  background: #292e35 !important;
+  border-color: #3b424c !important;
+}
+html.dark .administrative-document .administrative-tab-active {
+  background: #f8fafc !important;
+  color: #111827 !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .28) !important;
+}
+html.dark .administrative-document .administrative-tab-inactive {
+  color: #cbd5e1 !important;
+}
+html.dark .administrative-document .administrative-tab-inactive:hover {
+  color: #ffffff !important;
+  background: #343a43 !important;
+}
+html.dark .administrative-document .bg-slate-50,
+html.dark .administrative-document .bg-slate-50\/60 {
+  background-color: #20242a !important;
+}
+html.dark .administrative-document .bg-violet-50 {
+  background-color: #252235 !important;
+}
+
 .initial-loading-screen {
   position: fixed;
   inset: 0;

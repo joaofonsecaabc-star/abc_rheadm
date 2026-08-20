@@ -8198,7 +8198,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           Gere documentos padronizados usando os dados dos funcionários.
         </p>
       </div>
-      {(page === "Salário" || page === "Adiantamento") && <section className="mx-auto mb-6 max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+      {(page === "Salário" || page === "Adiantamento") && <section className="administrative-document mx-auto mb-6 max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-slate-800 px-6 py-5 text-white">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10 text-white"><ReceiptText size={21} /></span>
@@ -8208,9 +8208,9 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
         <div className="grid gap-x-5 gap-y-4 p-6 sm:grid-cols-2">
           <div className="sm:col-span-2 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div><b className="text-sm text-slate-900">1. Identificação</b><p className="text-xs text-slate-500">Escolha um funcionário ou preencha os dados manualmente.</p></div>
-            <div className="grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]">
-              <button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "registered" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>Funcionário cadastrado</button>
-              <button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "manual" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>Preencher manualmente</button>
+            <div className="administrative-segmented grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]">
+              <button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "registered" ? "administrative-tab-active bg-white text-slate-950 shadow-sm" : "administrative-tab-inactive text-slate-500 hover:text-slate-800"}`}>Funcionário cadastrado</button>
+              <button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "manual" ? "administrative-tab-active bg-white text-slate-950 shadow-sm" : "administrative-tab-inactive text-slate-500 hover:text-slate-800"}`}>Preencher manualmente</button>
             </div>
           </div>
           {receiptPersonMode === "registered" ? (
@@ -8270,10 +8270,10 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-5"><button type="button" onClick={generateReceipt} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3.5 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"><Download size={19} />Gerar recibo de {receiptKind === "salary" ? "salário" : "adiantamento"}</button></div>
         </div>
       </section>}
-      {page === "Recibo" && <section className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+      {page === "Recibo" && <section className="administrative-document mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-slate-800 px-6 py-5 text-white"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><ReceiptText size={21} /></span><div><h2 className="text-xl font-black">Recibo simples</h2><p className="text-sm text-slate-300">Informe recebedor, pagamento e referência.</p></div></div></div>
         <div className="grid gap-x-5 gap-y-4 p-6 sm:grid-cols-2">
-          <div className="sm:col-span-2 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between"><div><b className="text-sm text-slate-900">1. Identificação</b><p className="text-xs text-slate-500">Escolha um funcionário ou preencha os dados manualmente.</p></div><div className="grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]"><button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "registered" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>Funcionário cadastrado</button><button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "manual" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>Preencher manualmente</button></div></div>
+          <div className="sm:col-span-2 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between"><div><b className="text-sm text-slate-900">1. Identificação</b><p className="text-xs text-slate-500">Escolha um funcionário ou preencha os dados manualmente.</p></div><div className="administrative-segmented grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]"><button type="button" onClick={() => setReceiptPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "registered" ? "administrative-tab-active bg-white text-slate-950 shadow-sm" : "administrative-tab-inactive text-slate-500"}`}>Funcionário cadastrado</button><button type="button" onClick={() => setReceiptPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${receiptPersonMode === "manual" ? "administrative-tab-active bg-white text-slate-950 shadow-sm" : "administrative-tab-inactive text-slate-500"}`}>Preencher manualmente</button></div></div>
           {receiptPersonMode === "registered" ? <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}</select></label> : <><label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={receiptManualName} onChange={(event) => setReceiptManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label><label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={receiptManualCpf} onChange={(event) => setReceiptManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label></>}
           <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">2. Documento</b><p className="text-xs text-slate-500">Defina a empresa e a data do recibo.</p></div>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Loja / empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 shadow-sm"><option value="">Selecione a loja</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select></label>
@@ -8284,7 +8284,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
           <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-5"><button type="button" onClick={generateGenericReceipt} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3.5 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"><Download size={19} />Gerar recibo em PDF</button></div>
         </div>
       </section>}
-      {page === "Advertência" && <section className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+      {page === "Advertência" && <section className="administrative-document mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
         <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-slate-800 px-6 py-5 text-white">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10 text-white">
@@ -8301,9 +8301,9 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
         <div className="grid gap-x-5 gap-y-4 p-6 sm:grid-cols-2">
           <div className="sm:col-span-2 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div><b className="text-sm text-slate-900">1. Identificação</b><p className="text-xs text-slate-500">Escolha um funcionário ou preencha os dados manualmente.</p></div>
-            <div className="grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]">
-            <button type="button" onClick={() => setWarningPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${warningPersonMode === "registered" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>Funcionário cadastrado</button>
-            <button type="button" onClick={() => setWarningPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${warningPersonMode === "manual" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>Preencher manualmente</button>
+            <div className="administrative-segmented grid min-w-0 grid-cols-2 rounded-xl bg-slate-100 p-1 sm:min-w-[390px]">
+            <button type="button" onClick={() => setWarningPersonMode("registered")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${warningPersonMode === "registered" ? "administrative-tab-active bg-white text-slate-950 shadow-sm" : "administrative-tab-inactive text-slate-500"}`}>Funcionário cadastrado</button>
+            <button type="button" onClick={() => setWarningPersonMode("manual")} className={`rounded-lg px-4 py-2.5 text-sm font-bold transition ${warningPersonMode === "manual" ? "administrative-tab-active bg-white text-slate-950 shadow-sm" : "administrative-tab-inactive text-slate-500"}`}>Preencher manualmente</button>
             </div>
           </div>
           {warningPersonMode === "registered" ? (
