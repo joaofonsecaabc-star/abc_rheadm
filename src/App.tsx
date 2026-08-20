@@ -7909,6 +7909,17 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       year: "numeric",
     });
   };
+  const administrativeFileName = (type: string, fullName: string, date: string) => {
+    const nameParts = fullName.trim().replace(/\s+/g, " ").split(" ");
+    const shortName = nameParts.length > 1
+      ? `${nameParts[0]} ${nameParts[nameParts.length - 1]}`
+      : nameParts[0] || "Funcionário";
+    const [year, month, day] = date.split("-");
+    const shortDate = day && month && year ? `${day}.${month}` : "sem data";
+    const safeType = type.replace(/[\\/:*?"<>|]/g, "").trim();
+    const safeName = shortName.replace(/[\\/:*?"<>|]/g, "").trim();
+    return `${safeType} - ${safeName} ${shortDate}.pdf`;
+  };
   const generateReasonWithAI = async () => {
     if (warningSummary.trim().length < 5) {
       alert("Conte resumidamente o que aconteceu para a IA criar o motivo.");
@@ -8016,13 +8027,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.line(119, 270, 184, 270);
     doc.text("Nome", 55.5, 276, { align: "center" });
     doc.text("CPF", 151.5, 276, { align: "center" });
-    const safeName = warningPerson.employee
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .toLowerCase();
-    doc.save(`advertencia-${safeName}-${documentDate}.pdf`);
+    doc.save(administrativeFileName("Advertência", warningPerson.employee, documentDate));
     window.dispatchEvent(
       new CustomEvent("abc:toast", { detail: "Advertência gerada com sucesso" }),
     );
@@ -8124,8 +8129,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setFont("helvetica", "normal");
     doc.text(receiptPerson.employee, 30, signatureY + 16);
     doc.text(`CPF: ${receiptPerson.cpf}`, 30, signatureY + 24);
-    const safeName = receiptPerson.employee.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-    doc.save(`recibo-${receiptKind === "salary" ? "salario" : "adiantamento"}-${safeName}-${receiptDate}.pdf`);
+    doc.save(administrativeFileName(receiptKind === "salary" ? "Salário" : "Adiantamento", receiptPerson.employee, receiptDate));
     window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Recibo gerado com sucesso" }));
   };
   const generateGenericReceipt = async () => {
@@ -8164,8 +8168,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.setFont("helvetica", "normal");
     doc.text(receiptPerson.employee, 105, signatureY + 19, { align: "center" });
     doc.text(`CPF: ${receiptPerson.cpf}`, 105, signatureY + 28, { align: "center" });
-    const safeName = receiptPerson.employee.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-    doc.save(`recibo-${safeName}-${receiptDate}.pdf`);
+    doc.save(administrativeFileName("Recibo", receiptPerson.employee, receiptDate));
     window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Recibo gerado com sucesso" }));
   };
   return (
