@@ -3,6 +3,19 @@ import { generateWithOpenAI } from './_openai'
 
 const json = (data: unknown, status = 200) => Response.json(data, { status })
 
+const normalizeReason = (value: unknown) => {
+  const fact = String(value || '').trim()
+    .replace(/^(["'])|(["'])$/g, '')
+    .replace(/[.]+$/, '')
+    .replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '')
+    .replace(/\bna data informada[,]?\s*/gi, '')
+    .replace(/^(?:o\s+)?funcionário mencionado[,:]?\s*/i, '')
+    .replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, 'o funcionário mencionado')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return fact ? `o funcionário mencionado ${fact.charAt(0).toLowerCase()}${fact.slice(1)}` : ''
+}
+
 export const onRequestPost = async ({ request, env }: { request: Request; env: any }) => {
   const user = await currentUser(request, env.DB)
   if (!user) return json({ error: 'Sessão expirada.' }, 401)
@@ -12,15 +25,24 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
   if (description.length > 1000) return json({ error: 'A descrição deve ter no máximo 1.000 caracteres.' }, 400)
   if (!env.OPENAI_API_KEY && !env.AI) return json({ error: 'O recurso de IA ainda não está configurado.' }, 503)
 
-  const prompt = `Você auxilia um setor de Recursos Humanos brasileiro a redigir somente o motivo factual de uma advertência disciplinar.
-Reescreva a descrição abaixo em português do Brasil, com linguagem profissional, objetiva, neutra e respeitosa.
-Não invente fatos, datas, leis, nomes, punições ou circunstâncias. Não faça acusações além do que foi informado.
-Produza apenas uma oração curta que possa completar naturalmente a frase "foi apurado que, ...".
-Comece diretamente pelo fato, preferencialmente com verbo em letra minúscula. Nunca inicie com "foi constatado", "foi apurado", "foi verificado", "ocorreu" ou expressões equivalentes.
-Ao se referir à pessoa advertida, use sempre "o funcionário mencionado", nunca "um funcionário", "o funcionário" ou nomes próprios.
-Não escreva "na data informada" e não inclua outra data, título, saudação, aspas, punição ou observações adicionais.
+  const prompt = `Transforme o relato em UMA frase factual para uma advertência de RH.
+REGRAS OBRIGATÓRIAS:
+- Comece exatamente com "o funcionário mencionado".
+- Preserve somente os fatos do relato; não invente intenção, consequência, reincidência, testemunha, regra, punição ou lei.
+- Use português brasileiro profissional, direto e natural.
+- Máximo de 45 palavras, sem data, título, saudação, aspas ou ponto final.
+- Não use "foi constatado", "foi apurado", "na data informada", "um funcionário" ou o nome da pessoa.
 
-Descrição informada: ${description}`
+EXEMPLOS:
+Relato: faltou e não apresentou justificativa
+Resposta: o funcionário mencionado ausentou-se do trabalho sem apresentar justificativa
+Relato: abriu a gaveta pelo botão em vez de chamar a frente de caixa
+Resposta: o funcionário mencionado utilizou o botão de abertura da gaveta do caixa, em vez de seguir o procedimento orientado e solicitar o apoio da frente de caixa
+Relato: discutiu com uma colega no setor
+Resposta: o funcionário mencionado envolveu-se em uma discussão com uma colega de trabalho no setor informado
+
+RELATO: ${description}
+RESPOSTA:`
 
   if (env.AI) {
     try {
@@ -29,10 +51,10 @@ Descrição informada: ${description}`
           { role: 'system', content: 'Siga rigorosamente as instruções e devolva somente o texto solicitado.' },
           { role: 'user', content: prompt },
         ],
-        max_tokens: 220,
-        temperature: 0.2,
+        max_tokens: 90,
+        temperature: 0.05,
       })
-      const reason = String(result?.response || '').trim().replace(/^["']|["']$/g, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '').replace(/\bna data informada[,]?\s*/gi, '').replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, 'o funcionário mencionado')
+      const reason = normalizeReason(result?.response)
       if (reason) return json({ reason, provider: 'cloudflare' })
       console.error('Cloudflare Workers AI returned an empty warning reason')
     } catch (error) {
@@ -44,9 +66,9 @@ Descrição informada: ${description}`
     const openAIText = await generateWithOpenAI(env, {
       instructions: 'Você auxilia um setor de Recursos Humanos brasileiro. Siga rigorosamente as instruções, preserve os fatos e devolva somente o texto final solicitado.',
       input: prompt,
-      maxOutputTokens: 220,
+      maxOutputTokens: 90,
     })
-    const reason = String(openAIText || '').trim().replace(/^["']|["']$/g, '').replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '').replace(/\bna data informada[,]?\s*/gi, '').replace(/\b(?:um|o) funcionário(?! mencionado)\b/gi, 'o funcionário mencionado')
+    const reason = normalizeReason(openAIText)
     if (reason) return json({ reason, provider: 'openai' })
   } catch (error) {
     console.error('OpenAI warning reason fallback error', error)
