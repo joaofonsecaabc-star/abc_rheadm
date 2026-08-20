@@ -4230,7 +4230,7 @@ function RechargeHistoryPage({
               .sort((a, b) => a.employee.localeCompare(b.employee))
               .map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.employee} — {e.store}
+                  {e.employee}
                 </option>
               ))}
           </select>
@@ -7548,7 +7548,7 @@ function OccurrencesPage({
             <option value="">Funcionário</option>
             {eligible.map((e) => (
               <option value={e.id} key={e.id}>
-                {e.employee} - {e.store}
+                {e.employee}
               </option>
             ))}
           </select>
@@ -7925,7 +7925,7 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
         </div>
         <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
           <div className="sm:col-span-2 grid grid-cols-2 rounded-xl bg-slate-100 p-1"><button type="button" onClick={() => setReceiptKind("salary")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptKind === "salary" ? "bg-white shadow-sm" : "text-slate-500"}`}>Recibo de salário</button><button type="button" onClick={() => setReceiptKind("advance")} className={`rounded-lg px-4 py-3 text-sm font-bold ${receiptKind === "advance" ? "bg-white shadow-sm" : "text-slate-500"}`}>Recibo de adiantamento</button></div>
-          <label><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee} - {employee.store}</option>)}</select></label>
+          <label><span className="mb-2 block text-sm font-bold text-slate-700">Funcionário</span><select value={receiptEmployeeId} onChange={(event) => setReceiptEmployeeId(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione o funcionário</option>{activeEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee}</option>)}</select></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Empresa</span><select value={receiptCompany} onChange={(event) => setReceiptCompany(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4"><option value="">Selecione a empresa</option>{companies.map((company) => <option key={company} value={company}>{company}{companyCnpjs[company] ? ` - ${companyCnpjs[company]}` : ""}</option>)}</select>{!companies.length && <span className="mt-1 block text-xs text-amber-600">Cadastre a empresa e o CNPJ em Configurações → Empresas.</span>}</label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Competência</span><input type="month" value={receiptPeriod} onChange={(event) => setReceiptPeriod(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
           <label><span className="mb-2 block text-sm font-bold text-slate-700">Data</span><input type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
@@ -7960,7 +7960,7 @@ function AdministrativePage({ employees, companies, companyCnpjs, financialEntri
               <option value="">Selecione o funcionário</option>
               {activeEmployees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
-                  {employee.employee} - {employee.store}
+                  {employee.employee}
                 </option>
               ))}
             </select>
