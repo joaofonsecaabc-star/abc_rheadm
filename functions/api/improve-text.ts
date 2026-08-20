@@ -1,4 +1,5 @@
 import { currentUser } from './auth/_utils'
+import { generateWithOpenAI } from './_openai'
 
 const json = (data: unknown, status = 200) => Response.json(data, { status })
 
@@ -11,13 +12,23 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
   const context = String(body.context || 'reason')
   if (text.length < 2) return json({ error: 'Digite um texto para a IA melhorar.' }, 400)
   if (text.length > 1500) return json({ error: 'O texto deve ter no máximo 1.500 caracteres.' }, 400)
-  if (!env.AI) return json({ error: 'O recurso de IA ainda não está configurado.' }, 503)
+  if (!env.OPENAI_API_KEY && !env.AI) return json({ error: 'O recurso de IA ainda não está configurado.' }, 503)
 
   const instruction = context === 'receipt_reference'
     ? `Reescreva o texto como uma expressão curta, natural e profissional que complete a frase "referente a ..." em um recibo brasileiro. Evite dois-pontos, título, saudação, aspas e ponto final. Não invente informações. Exemplo: "Vale" pode se tornar "pagamento de vale".`
     : `Reescreva o motivo em português do Brasil, com linguagem profissional, objetiva, neutra e respeitosa. Preserve rigorosamente os fatos informados. Não invente nomes, datas, leis, punições ou circunstâncias. Produza somente um parágrafo, sem título, saudação, aspas ou comentários.`
 
   try {
+    const openAIText = await generateWithOpenAI(env, {
+      instructions: 'Você revisa textos administrativos brasileiros. Preserve integralmente o sentido e os fatos. Responda somente com o texto final solicitado.',
+      input: `${instruction}\n\nTexto informado: ${text}`,
+      maxOutputTokens: context === 'receipt_reference' ? 100 : 260,
+    })
+    if (openAIText) {
+      const improved = openAIText.trim().replace(/^[\"']|[\"']$/g, '').replace(/\.$/, '')
+      if (!improved) return json({ error: 'A IA não conseguiu melhorar o texto. Tente novamente.' }, 502)
+      return json({ text: improved, provider: 'openai' })
+    }
     const result: any = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [
         { role: 'system', content: 'Você revisa textos administrativos brasileiros. Responda somente com o texto final solicitado.' },
@@ -28,7 +39,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
     })
     const improved = String(result?.response || '').trim().replace(/^["']|["']$/g, '').replace(/\.$/, '')
     if (!improved) return json({ error: 'A IA não conseguiu melhorar o texto. Tente novamente.' }, 502)
-    return json({ text: improved })
+    return json({ text: improved, provider: 'cloudflare' })
   } catch (error) {
     console.error('improve text AI error', error)
     return json({ error: 'Não foi possível melhorar o texto com IA agora.' }, 502)
