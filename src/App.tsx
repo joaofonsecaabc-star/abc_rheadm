@@ -8042,6 +8042,18 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     const safeName = shortName.replace(/[\\/:*?"<>|]/g, "").trim();
     return `${safeType} - ${safeName} ${shortDate}.pdf`;
   };
+  const normalizeWarningReasonSubject = (value: string, gender?: Recharge["gender"]) => {
+    const subject = gender === "Feminino" ? "a colaboradora mencionada" : "o colaborador mencionado";
+    const fact = String(value || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(
+        /^(?:(?:(?:o|a)\s+)?(?:funcionári[oa]|colaborador[oa])\s+mencionad[oa][,:\s]*|a\s+pessoa\s+mencionada[,:\s]*)+/i,
+        "",
+      )
+      .trim();
+    return fact ? `${subject} ${fact.charAt(0).toLowerCase()}${fact.slice(1)}` : subject;
+  };
   const generateReasonWithAI = async () => {
     if (warningSummary.trim().length < 5) {
       alert("Conte resumidamente o que aconteceu para a IA criar o motivo.");
@@ -8056,7 +8068,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.reason) throw new Error(data.error || "Não foi possível gerar o texto.");
-      setReason(String(data.reason));
+      setReason(normalizeWarningReasonSubject(String(data.reason), warningPerson?.gender));
       window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Motivo criado com IA. Revise antes de gerar." }));
     } catch (error) {
       alert(error instanceof Error ? error.message : "Não foi possível gerar o texto com IA.");
@@ -8123,7 +8135,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       : warningPerson.gender === "Masculino"
         ? "o colaborador mencionado"
         : "o colaborador mencionado";
-    const cleanedReason = reason
+    const cleanedReason = normalizeWarningReasonSubject(reason
       .trim()
       .replace(/\s+/g, " ")
       .replace(/[.]+$/, "")
@@ -8131,7 +8143,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
       .replace(/\bna data informada[,]?\s*/gi, "")
       .replace(/\b(?:um|uma|o|a)\s+(?:funcionári[oa]|colaborador[oa])(?:\s+mencionad[oa])?\b/gi, collaboratorReference)
       .replace(/\b(?:funcionári[oa]|colaborador[oa])\s+mencionad[oa]\b/gi, collaboratorReference)
-      .replace(/\ba pessoa mencionada\b/gi, collaboratorReference);
+      .replace(/\ba pessoa mencionada\b/gi, collaboratorReference), warningPerson.gender);
     const reasonClause = cleanedReason
       ? cleanedReason.charAt(0).toLowerCase() + cleanedReason.slice(1)
       : "houve a ocorrência informada";

@@ -9,7 +9,7 @@ const normalizeReason = (value: unknown, subject: string) => {
     .replace(/[.]+$/, '')
     .replace(/^(?:foi\s+(?:constatado|apurado|verificado)\s+que|constatou-se\s+que|ocorreu(?:\s+que)?)[,:\s]*/i, '')
     .replace(/\bna data informada[,]?\s*/gi, '')
-    .replace(/^(?:(?:o|a)\s+)?(?:funcionári[oa]|colaborador[oa]) mencionad[oa][,:]?\s*/i, '')
+    .replace(/^(?:(?:(?:o|a)\s+)?(?:funcionári[oa]|colaborador[oa])\s+mencionad[oa][,:\s]*|a\s+pessoa\s+mencionada[,:\s]*)+/i, '')
     .replace(/\b(?:um|uma|o|a)\s+(?:funcionári[oa]|colaborador[oa])(?:\s+mencionad[oa])?\b/gi, subject)
     .replace(/\s+/g, ' ')
     .trim()
