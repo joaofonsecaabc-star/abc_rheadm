@@ -8162,11 +8162,11 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.text(collaboratorLabel, 55.5, signatureY + 6, { align: "center" });
     doc.text("Empresa", 151.5, signatureY + 6, { align: "center" });
     doc.setFontSize(9);
-    doc.text("Testemunhas", left, 260);
-    doc.line(23, 270, 88, 270);
-    doc.line(119, 270, 184, 270);
-    doc.text("Nome", 55.5, 276, { align: "center" });
-    doc.text("CPF", 151.5, 276, { align: "center" });
+    doc.text("Testemunhas", left, 245);
+    doc.line(23, 255, 88, 255);
+    doc.line(119, 255, 184, 255);
+    doc.text("Nome", 55.5, 261, { align: "center" });
+    doc.text("CPF", 151.5, 261, { align: "center" });
     doc.save(administrativeFileName("Advertência", warningPerson.employee, documentDate));
     window.dispatchEvent(
       new CustomEvent("abc:toast", { detail: "Advertência gerada com sucesso" }),
