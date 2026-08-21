@@ -8159,11 +8159,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.line(119, signatureY, 184, signatureY);
     doc.setFontSize(9.5);
     doc.text(collaboratorLabel, 55.5, signatureY + 6, { align: "center" });
-    doc.text("Responsável legal (quando menor)", 151.5, signatureY + 6, {
-      align: "center",
-    });
-    doc.line(23, 239, 88, 239);
-    doc.text("Empresa", 55.5, 245, { align: "center" });
+    doc.text("Empresa", 151.5, signatureY + 6, { align: "center" });
     doc.setFontSize(9);
     doc.text("Testemunhas", left, 260);
     doc.line(23, 270, 88, 270);
