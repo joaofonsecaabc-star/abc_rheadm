@@ -532,6 +532,7 @@ const formatCnpj = (value: string) =>
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 const genderFromRole = (role: string): Recharge["gender"] | undefined => {
   const normalized = String(role || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\brepositor(?:\s+de\s+mercadorias)?\b|\bsub\s*[-–]?\s*gerente\b|\bsubgerente\b/.test(normalized)) return "Masculino";
   return /aux(?:iliar)?\.?\s*(?:de\s*)?servicos?\s*gerais|frente\s*(?:de\s*)?caixa|operador\(?a?\)?\s*(?:de\s*)?caixa|\bcaixa\b|\bsuporte\b|\batendente\b/.test(normalized)
     ? "Feminino"
     : undefined;
@@ -8792,8 +8793,11 @@ export default function App() {
   }, [cloudReady, rows, sessionUser?.role]);
   useEffect(() => {
     if (!cloudReady || sessionUser?.role !== "admin") return;
-    if (!rows.some((employee) => genderFromRole(employee.role) === "Feminino" && employee.gender !== "Feminino")) return;
-    setRows((current) => current.map((employee) => genderFromRole(employee.role) === "Feminino" ? { ...employee, gender: "Feminino" } : employee));
+    if (!rows.some((employee) => genderFromRole(employee.role) && employee.gender !== genderFromRole(employee.role))) return;
+    setRows((current) => current.map((employee) => {
+      const roleGender = genderFromRole(employee.role);
+      return roleGender ? { ...employee, gender: roleGender } : employee;
+    }));
     window.dispatchEvent(new CustomEvent("abc:toast", { detail: "Sexo corrigido conforme a função cadastrada" }));
   }, [cloudReady, rows, sessionUser?.role]);
   useEffect(() => {

@@ -38,6 +38,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
 Devolva SOMENTE um array JSON válido no formato [{"id":1,"gender":"Feminino"}].
 Use exclusivamente "Masculino" ou "Feminino". Preserve cada id e devolva todos os registros, sem explicações.
 Nesta empresa, as funções de Auxiliar de Serviços Gerais, Frente de Caixa, Caixa/Operadora de Caixa, Suporte e Atendente são ocupadas por mulheres e devem ser classificadas como Feminino.
+As funções de Repositor, Repositor de Mercadorias, Subgerente e Sub-Gerente são ocupadas por homens e devem ser classificadas como Masculino.
 
 PESSOAS:
 ${JSON.stringify(people)}`
