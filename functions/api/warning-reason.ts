@@ -25,7 +25,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: a
     ? 'a colaboradora mencionada'
     : body.gender === 'Masculino'
       ? 'o colaborador mencionado'
-      : 'a pessoa mencionada'
+      : 'o colaborador mencionado'
   if (description.length < 5) return json({ error: 'Descreva resumidamente o que aconteceu.' }, 400)
   if (description.length > 1000) return json({ error: 'A descrição deve ter no máximo 1.000 caracteres.' }, 400)
   if (!env.OPENAI_API_KEY && !env.AI) return json({ error: 'O recurso de IA ainda não está configurado.' }, 503)

@@ -8092,8 +8092,8 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
   };
   const generateWarning = async () => {
     const validOccurredDates = [...new Set(occurredDates.filter(Boolean))].sort();
-    if (!warningPerson || !warningPerson.cpf || !documentDate || !validOccurredDates.length || !reason.trim()) {
-      alert("Selecione um funcionário ou informe nome e CPF, além das datas e do motivo.");
+    if (!warningPerson || !warningPerson.cpf || !warningPerson.gender || !documentDate || !validOccurredDates.length || !reason.trim()) {
+      alert("Selecione um funcionário com sexo cadastrado ou informe nome, CPF e sexo, além das datas e do motivo.");
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -8110,13 +8110,18 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.text("ADVERTÊNCIA DISCIPLINAR", 105, 61, { align: "center" });
     doc.setFontSize(10.5);
     doc.setFont("helvetica", "normal");
-    doc.text(`Pessoa advertida: ${warningPerson.employee}`, left, 75);
+    const collaboratorLabel = warningPerson.gender === "Feminino"
+      ? "Colaboradora"
+      : warningPerson.gender === "Masculino"
+        ? "Colaborador"
+        : "Colaborador";
+    doc.text(`${collaboratorLabel}: ${warningPerson.employee}`, left, 75);
     doc.text(`CPF: ${warningPerson.cpf}`, left, 83);
     const collaboratorReference = warningPerson.gender === "Feminino"
       ? "a colaboradora mencionada"
       : warningPerson.gender === "Masculino"
         ? "o colaborador mencionado"
-        : "a pessoa mencionada";
+        : "o colaborador mencionado";
     const cleanedReason = reason
       .trim()
       .replace(/\s+/g, " ")
@@ -8153,7 +8158,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
     doc.line(23, signatureY, 88, signatureY);
     doc.line(119, signatureY, 184, signatureY);
     doc.setFontSize(9.5);
-    doc.text("Pessoa advertida", 55.5, signatureY + 6, { align: "center" });
+    doc.text(collaboratorLabel, 55.5, signatureY + 6, { align: "center" });
     doc.text("Responsável legal (quando menor)", 151.5, signatureY + 6, {
       align: "center",
     });
@@ -8441,7 +8446,7 @@ function AdministrativePage({ page, employees, companies, companyCnpjs, financia
             <>
               <label><span className="mb-2 block text-sm font-bold text-slate-700">Nome completo</span><input value={warningManualName} onChange={(event) => setWarningManualName(event.target.value)} placeholder="Digite o nome completo" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
               <label><span className="mb-2 block text-sm font-bold text-slate-700">CPF</span><input inputMode="numeric" maxLength={14} value={warningManualCpf} onChange={(event) => setWarningManualCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="h-12 w-full rounded-xl border border-slate-200 px-4" /></label>
-              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Sexo</span><select value={warningManualGender} onChange={(event) => setWarningManualGender(event.target.value as Recharge["gender"] | "")} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4"><option value="">Selecione</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></select></label>
+              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">Sexo</span><select required value={warningManualGender} onChange={(event) => setWarningManualGender(event.target.value as Recharge["gender"] | "")} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4"><option value="">Selecione</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></select></label>
             </>
           )}
           <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-5"><b className="text-sm text-slate-900">2. Ocorrência</b><p className="text-xs text-slate-500">Informe as datas e descreva objetivamente o que aconteceu.</p></div>
